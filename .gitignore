@@ -34,3 +34,4 @@ tmp/
 # Download caches
 *.zip
 *.tar.gz
+.Rhistory
