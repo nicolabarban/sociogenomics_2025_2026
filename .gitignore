@@ -1,0 +1,36 @@
+.DS_Store
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+
+# Outputs and intermediate files
+results/
+output/
+outputs/
+work/
+tmp/
+*.log
+*.nosex
+*.frq
+*.assoc
+*.assoc.*
+*.qassoc
+*.genome
+*.grm.*
+*.profile
+*.nopred
+*.eigenvec
+*.eigenval
+*.rel.id
+*.raw
+*.recode.*
+*.missing
+*.imiss
+*.lmiss
+*.hh
+*.het
+*.cluster*
+
+# Download caches
+*.zip
+*.tar.gz
