@@ -11,7 +11,7 @@ Create directories
 ```
 mkdir data
 mkdir labs
-mkdir labs\week1
+mkdir labs/week1
 ls
 ls -F
 ```
@@ -22,7 +22,7 @@ Navigate  directories
 ```
 cd data
 ls
-cd..
+cd ..
 cd $HOME
 ```
 
