@@ -1,8 +1,3 @@
----
-layout: default
-title: Sociogenomics 2025/2026
----
-
 # Sociogenomics 2025/2026
 ## Instructor: Prof. Nicola Barban
 ## University of Bologna
