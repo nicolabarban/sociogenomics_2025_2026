@@ -1,0 +1,7 @@
+title: Sociogenomics 2025/2026
+description: Course materials for Sociogenomics - University of Bologna
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+markdown: kramdown
