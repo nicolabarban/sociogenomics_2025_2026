@@ -4,6 +4,13 @@
 
 
 
+## Week 1
+
+* [Lab](labs/week1/lab1.md)
+* [Script](labs/week1/script1.sh)
+
+
+<!--
 ## Students' presentations
 * [Topics and Instructions](presentations.md)
 
@@ -37,8 +44,6 @@
 ## Week 5
 
  * [Lab week 5](labs/week5/lab5.md)
- 
-
 
 
 
@@ -64,6 +69,4 @@
 ## Week 9
 * [Tutorial PGI](labs/week9/tutorialPGI.md)
 * [Data](https://www.dropbox.com/scl/fo/418u49flretn9itwrhrve/AB39p8lhPCtFFzu4EbadWo8?rlkey=vnkt10hl5ev23qt973gk370l6&dl=0)
-
-
-
+-->
