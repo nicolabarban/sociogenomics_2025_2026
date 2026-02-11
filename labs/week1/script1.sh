@@ -163,35 +163,26 @@ awk -F '[:"\t"]' '{ if($6 >0.1 && $1==21) print $1, $2, $3, $4,  $6}' sumstatsUK
 
 # --- PART II: Installing PLINK (genetic analysis tool) ---
 
-# Navigate to the Software directory
+# Install PLINK using the setup script (installs to ~/.local/bin and adds to PATH)
+# This only needs to be run once — plink will persist across Cloud Shell sessions.
 cd $HOME
-cd Sociogenomics/Software
+bash sociogenomics_2025_2026/scripts/setup_plink19.sh
 
-# Download and extract PLINK (v1.9, Linux x86_64 - compatible with Google Cloud Shell)
-curl -L -o plink_linux_x86_64_20210606.zip https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20210606.zip
-unzip plink_linux_x86_64_20210606.zip
+# Reload PATH so plink is available immediately
+source ~/.bashrc
 
-# Make the PLINK binary executable
-chmod +x plink
+# Test that PLINK works (callable from anywhere)
+plink --help
 
-# Test that PLINK works
-./plink --help
+# --- Running PLINK on hapmap data ---
 
-# --- Creating a symbolic link and running PLINK ---
-
-# Create a symbolic link to plink in the main project directory
-# This allows running plink from the project root without specifying the full path
 cd $HOME/Sociogenomics
- ln -s Software/plink
-
-# Verify plink is accessible via the symlink
-./plink --help
 
 # Run PLINK to compute allele frequencies from the hapmap data
 # --file: input file prefix (reads hapmap1.ped and hapmap1.map)
 # --freq: calculate minor allele frequencies
 # --out: output file prefix
-./plink --file   Data/hapmap1 --freq --out Results/test
+plink --file Data/hapmap1 --freq --out Results/test
 
 # View the allele frequency results
 head -20 Results/test.frq

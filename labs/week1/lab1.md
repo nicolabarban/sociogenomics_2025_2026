@@ -1,272 +1,349 @@
-# Lab 1.  Introducing the Unix shell
+# Lab 1. Introduction to the Unix Shell
 
-## Description
-
-## Part I . Managing files and directories.
-
-
-Create directories
-```
-mkdir data
-mkdir labs
-mkdir labs/week1
-ls
-ls -F
-```
-
-Upload files (upload them  if using Cloud or using GUI)
-
-Navigate  directories
-```
-cd data
-ls
-cd ..
-cd $HOME
-```
-
-Copying files and directories
-```
-cd .. 
-cp data/hapmap1.map ../
-ls 
-
-
-cp -r labs data/
-cd data
-ls
-```
-
-
-Moving files and directories
-```
-mv data/hapmap1.map ../
-ls 
-
-
-
-```
-
-Remove files and directories
-```
-rm data/hapmap1.map 
-ls 
-
-
-cd ..
-rm -r data
-rm -r labs
-
-```
-
-## Exercise 1
-
-* Create one directory called Sociogenomics in your home
-* Create the following subdirectories:		
-	* Data
-	* Scripts
-	* Results
-	* Software
-* Move the files from Virtuale into the folders
-* Remove the files used until now
+In this lab you will learn the basics of working in a Linux terminal using **Google Cloud Shell**. By the end you will be able to navigate the file system, organise files into directories, inspect genetic data files, and use `awk` for data manipulation.
 
 ---
 
-## Looking at files
+## 0. Getting started — Google Cloud Shell
 
-look at the first 6 rows
-```
-cd Sociogenomics/Data
-head hapmap1.map 
+Open [Google Cloud Shell](https://shell.cloud.google.com/) in your browser. You get a free Linux virtual machine with a persistent home directory.
 
-```
-
-
-look at the first x rows
-```
-head -10 hapmap1.map 
+### Clone the course repository
 
 ```
-
-Count number of lines
+git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
 ```
-wc -l hapmap1.map  
+
+This downloads all lab materials and data into `~/sociogenomics_2025_2026/`.
+
+### Uploading and downloading files
+
+Cloud Shell has a built-in file transfer feature. Click the **three-dot menu (⋮)** in the top-right corner of the terminal:
+
+- **Upload file** — transfer a file from your computer to the current directory.
+- **Download file** — enter the path to a file (e.g. `Sociogenomics/Results/output.txt`) to save it to your computer.
+
+You can also click **Open Editor** to browse and edit files visually.
+
+---
+
+## Part I. Navigating the file system
+
+### Where am I?
+
+```
+pwd
+```
+
+This prints your **working directory** (usually `/home/your_username`).
+
+### Listing files
+
+```
+ls
+ls -l
+ls -lh
+```
+
+`-l` shows a detailed list (permissions, size, date). `-h` makes sizes human-readable.
+
+### Creating directories
+
+Create a project directory with subdirectories for organising your work:
+
+```
+mkdir -p Sociogenomics/Data Sociogenomics/Results Sociogenomics/Scripts
+```
+
+Verify the structure:
+
+```
+ls Sociogenomics
+```
+
+### Navigating directories
+
+```
+cd Sociogenomics
+pwd
+cd Data
+pwd
+cd ..
+cd ~
+```
+
+`cd ..` moves up one level. `cd ~` (or just `cd`) takes you back to your home directory.
+
+### Copying files
+
+Copy the HapMap data from the course repository into your project:
+
+```
+cp ~/sociogenomics_2025_2026/data/hapmap1.map ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/hapmap1.ped ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/BMI_pheno.txt ~/Sociogenomics/Data/
+```
+
+### Moving and renaming files
+
+```
+cp ~/Sociogenomics/Data/hapmap1.map ~/Sociogenomics/Data/hapmap1_backup.map
+mv ~/Sociogenomics/Data/hapmap1_backup.map ~/Sociogenomics/Results/
+ls ~/Sociogenomics/Results/
+```
+
+`mv` moves or renames a file.
+
+### Removing files
+
+```
+rm ~/Sociogenomics/Results/hapmap1_backup.map
+```
+
+Use `rm -r` to remove a directory and its contents (be careful!).
+
+### Exercise 1
+
+1. Create a directory called `Sociogenomics/Temp`.
+2. Copy `hapmap1.ped` into `Temp/`.
+3. Rename it to `test.ped` using `mv`.
+4. Remove the `Temp/` directory and everything inside it.
+
+---
+
+## Part II. Exploring the HapMap data
+
+The HapMap project catalogued common genetic variants across human populations. We have two files:
+
+- **`hapmap1.map`** — one row per SNP with 4 columns: chromosome, SNP ID, genetic distance, base-pair position.
+- **`hapmap1.ped`** — one row per individual with 6 fixed columns (family ID, individual ID, father ID, mother ID, sex, phenotype) followed by two allele columns per SNP.
+
+Navigate to the Data directory:
+
+```
+cd ~/Sociogenomics/Data
+```
+
+### Looking at files
+
+View the first 10 lines of the map file:
+
+```
+head hapmap1.map
+```
+
+View the first 5 lines:
+
+```
+head -5 hapmap1.map
+```
+
+View the last 5 lines:
+
+```
+tail -5 hapmap1.map
+```
+
+The ped file is very wide, so `head` will only show the beginning of each row:
+
+```
+head -3 hapmap1.ped
+```
+
+### Counting lines
+
+```
+wc -l hapmap1.map
 wc -l hapmap1.ped
 ```
 
+**Question:** How many SNPs are in the dataset? How many individuals?
 
-Echo  allows you to send text into the terminal  the symbol (\) "backslash" allows you to write your command in several 
+### Searching with grep
 
-```
-echo 'Hello' \
- 'world'
-```
-
-It is possible to combine several commands by using pipilines
-```
-echo 'Hello world' | wc
-
-```
-
-Grep allows you to search for a pattern in a file
+Search for a specific SNP by its rs ID:
 
 ```
 grep rs7540009 hapmap1.map
+```
 
+Search for all SNPs whose ID starts with `rs75`:
+
+```
 grep rs75 hapmap1.map
-
-grep rs75 hapmap1.map | wc -l
-
-
 ```
 
-
-Download GWAS summary statistics from UK Biobank
-http://www.nealelab.is/uk-biobank
+Count the matches:
 
 ```
-curl -L -o sumstatsUKB_height.tsv.gz "https://www.dropbox.com/s/ou12jm89v74k55e/50_irnt.gwas.imputed_v3.both_sexes.tsv.bgz?dl=1"
-
-gunzip -d sumstatsUKB_height.tsv.gz
+grep -c rs75 hapmap1.map
 ```
 
-Have a look at the data
-```
-head sumstatsUKB_height.tsv
-wc sumstatsUKB_height.tsv
+### Searching on a specific chromosome
 
-more sumstatsUKB_height.tsv
+Find all SNPs on chromosome 22:
 
 ```
-
-
-## AWK
-Awk is a scripting language used for manipulating data and generating reports. The awk command programming language requires no compiling and allows the user to use variables, numeric functions, string functions, and logical operators. 
-
-Awk is a utility that enables a programmer to write tiny but effective programs in the form of statements that define text patterns that are to be searched for in each line of a document and the action that is to be taken when a match is found within a line. Awk is mostly used for pattern scanning and processing. It searches one or more files to see if they contain lines that matches with the specified patterns and then perform the associated actions. 
-
-Awk is abbreviated from the names of the developers – Aho, Weinberger, and Kernighan. 
-
-```
-cat BMI_pheno.txt
-awk '{print}' BMI_pheno.txt
-
-
+grep "^22" hapmap1.map | head
 ```
 
-```
-awk '{print $1, $2  }'  BMI_pheno.txt
+Count them:
 
 ```
-
-
-
-find a pattern on the data
-```
-awk ' /3:49860854/ {print  $1, $2, $5, $11 }'  sumstatsUKB_height.tsv
-awk ' {print  $1, $2, $5, $11 }'  sumstatsUKB_height.tsv | grep 3:49860854
-
+grep -c "^22" hapmap1.map
 ```
 
-Built-In Variables In Awk
+`^` means "start of line", so `^22` matches rows where the chromosome column is 22.
 
-Awk’s built-in variables include the field variables—$1, $2, $3, and so on ($0 is the entire line) — that break a line of text into individual words or pieces called fields. 
+### Combining commands with pipes
 
-NR: NR command keeps a current count of the number of input records. Remember that records are usually lines. Awk command performs the pattern/action statements once for each record in a file. 
-NF: NF command keeps a count of the number of fields within the current input record. 
-FS: FS command contains the field separator character which is used to divide fields on the input line. The default is “white space”, meaning space and tab characters. FS can be reassigned to another character (typically in BEGIN) to change the field separator. 
-
-OFS: OFS command stores the output field separator, which separates the fields when Awk prints them. The default is a blank space. Whenever print has several parameters separated with commas, it will print the value of OFS in between each parameter. 
-
-
-
-Print Number of row, and column number 1 and 2
-```
-awk '{ print  NR, $1, $2  }'  BMI_pheno.txt
+Pipes (`|`) send the output of one command into another:
 
 ```
-
-Print number of fields
-```
-awk '{print $1,$NF}' BMI_pheno.txt
+grep "^1	" hapmap1.map | wc -l
 ```
 
-Print case 3-6
-```
-awk 'NR==3, NR==6 {print NR,$0}'  BMI_pheno.txt
-```
+This counts SNPs on chromosome 1. The tab character after `1` avoids matching chromosomes 10–19.
 
-Print symbols
-```
-awk '{print NR "- " $1 }' BMI_pheno.txt
+### Exercise 2
 
-```
+1. How many SNPs are on chromosome 6?
+2. Find the SNP `rs4558854` — which chromosome is it on?
+3. How many SNPs have IDs starting with `rs10`?
 
-Print specific rows
-```
-awk '{ if(NR==1) print $1, $2  }'  BMI_pheno.txt
+---
 
-awk '{ if(NR<10) print $1, $2  }'  BMI_pheno.txt
+## Part III. Data manipulation with AWK
 
-```
+`awk` is a powerful tool for processing column-based text files. It reads a file line by line and lets you select, filter, and transform columns.
 
-
-Print first 10 rows
-```
-
-awk '{ if(NR<10) print   }'  sumstatsUKB_height.tsv
+### Basic syntax
 
 ```
-
-print only rows with p-value>5e-08
-```
-awk '{ if($11<5e-08) print  $1, $2, $5, $11 }'  sumstatsUKB_height.tsv
-
+awk '{ action }' filename
 ```
 
-transforming columns
-```
-awk '{ if($11<5e-08) print  $1, $2, $5, log($11) }'  sumstatsUKB_height.tsv
+### Printing columns
+
+The `.map` file has 4 columns: `$1` (chromosome), `$2` (SNP ID), `$3` (genetic distance), `$4` (position).
 
 ```
-
-
- To count the lines in a file:  
-```
-$ awk 'END { print NR }' sumstatsUKB_height.tsv 
+awk '{ print $1, $2 }' hapmap1.map | head
 ```
 
-Change delimiter character
-```
-awk 'FS=":" {print $1, $2, $3}' sumstatsUKB_height.tsv | head
-awk 'FS=":", OFS="-" {print $1, $2, $3}' sumstatsUKB_height.tsv | head
-```
-
-multiple field separators
+Print with custom labels:
 
 ```
-awk -F '[:"\t"]' '{ if(NR>1) print $1, $2, $3 , $4, $13}' sumstatsUKB_height.tsv | head
+awk '{ print "chr"$1, $2, "pos:"$4 }' hapmap1.map | head
 ```
 
-Redirecting output to new file
-```
-awk '{ if($11<5e-08) print  $1, $2, $5, $11 }'  sumstatsUKB_height.tsv > ../Results/sign_variants_UKB.txt
-```
+### Built-in variables
 
-Selecting SNPs with MAF  greater than 10%
-```
-awk '{ if($3>0.1) print  $1, $2, $5, $11 }'  sumstatsUKB_height.tsv > ../Results/common_variants_UKB.txt
-
-head  ../Results/common_variants_UKB.txt
-```
-
-Counting SNPS with MAF>10% pvalue>5e-08 in Chromosome 1
-```
-awk -F '[:"\t"]' '{ if($6 >0.1 && $1==1) print $1, $2, $3, $4,  $6}' sumstatsUKB_height.tsv | wc -l
+- **NR** — current row number
+- **NF** — number of fields in the current row
+- **$0** — the entire line
 
 ```
-Counting SNPS with MAF>10% pvalue>5e-08 in Chromosome 21
+awk '{ print NR, $1, $2 }' hapmap1.map | head
+```
+
+How many columns does the ped file have?
 
 ```
-awk -F '[:"\t"]' '{ if($6 >0.1 && $1==21) print $1, $2, $3, $4,  $6}' sumstatsUKB_height.tsv | wc -l
+awk '{ print NF; exit }' hapmap1.ped
+```
+
+**Question:** The `.ped` file has 6 fixed columns followed by two allele columns per SNP. Given the number of fields, how many SNPs does this confirm?
+
+### Filtering rows
+
+Print only SNPs on chromosome 2:
 
 ```
+awk '$1 == 2 { print $1, $2, $4 }' hapmap1.map | head
+```
+
+Print rows 100 to 105:
+
+```
+awk 'NR >= 100 && NR <= 105' hapmap1.map
+```
+
+### Pattern matching
+
+Find a SNP by exact ID:
+
+```
+awk '$2 == "rs7540009" { print $0 }' hapmap1.map
+```
+
+Find all SNPs matching a pattern:
+
+```
+awk '$2 ~ /rs75/ { print $1, $2, $4 }' hapmap1.map
+```
+
+### Counting SNPs per chromosome
+
+```
+awk '{ count[$1]++ } END { for (chr in count) print "chr"chr, count[chr] }' hapmap1.map | sort -n -k1.4
+```
+
+### Working with the BMI phenotype file
+
+```
+head BMI_pheno.txt
+```
+
+This file has 3 tab-separated columns: FID, IID, BMI.
+
+Print the first 5 individuals:
+
+```
+awk 'NR <= 6 { print $1, $2, $3 }' BMI_pheno.txt
+```
+
+Find individuals with BMI above 30:
+
+```
+awk 'NR > 1 && $3 > 30 { print $1, $2, $3 }' BMI_pheno.txt | head
+```
+
+Count them:
+
+```
+awk 'NR > 1 && $3 > 30' BMI_pheno.txt | wc -l
+```
+
+### Changing delimiters
+
+Use tab as output separator:
+
+```
+awk 'BEGIN { OFS="\t" } { print $1, $2, $4 }' hapmap1.map | head
+```
+
+### Redirecting output to a file
+
+Save all chromosome 1 SNPs to a new file:
+
+```
+awk '$1 == 1 { print $2, $4 }' hapmap1.map > ../Results/chr1_snps.txt
+head ../Results/chr1_snps.txt
+wc -l ../Results/chr1_snps.txt
+```
+
+You can download this file to your computer using the Cloud Shell menu: **⋮ → Download file**, then type `Sociogenomics/Results/chr1_snps.txt`.
+
+### Counting lines with AWK
+
+```
+awk 'END { print NR }' hapmap1.map
+```
+
+### Exercise 3
+
+1. Use `awk` to count how many SNPs are on each of chromosomes 1, 2, and 22.
+2. Extract all SNPs on chromosome 6 with their positions and save to `Results/chr6_snps.txt`.
+3. How many individuals in `BMI_pheno.txt` have a BMI below 20?
+4. Compute the average BMI across all individuals. Hint: accumulate a sum and count in the main block, then print the result in the `END` block.

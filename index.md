@@ -2,33 +2,15 @@
 ## Instructor: Prof. Nicola Barban
 ## University of Bologna
 
-## Quick start (Cloud Shell)
-```
-git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
-cd sociogenomics_2025_2026
-bash scripts/setup_plink19.sh
-```
 
-## Quick start (Google Colab)
-In a Colab notebook cell:
-```
-!git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
-%cd sociogenomics_2025_2026
-!bash scripts/setup_plink19.sh
-```
 
-## Repository layout
-- `labs/` — lab instructions and scripts by week
-- `data/` — small datasets for exercises
-- `scripts/` — setup and download utilities
+
 
 ---
 
 ## Week 1
 
 * [Lab](labs/week1/lab1.md)
-* [Script](labs/week1/script1.sh)
-* [Data](http://nicolabarban.com/sociogenomics2022/week1/data/week1.zip)
 
 
 <!--
