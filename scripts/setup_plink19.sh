@@ -41,9 +41,11 @@ chmod +x "$PLINK_ROOT/plink"
 ln -sf "$PLINK_ROOT/plink" "$BIN_DIR/plink"
 
 echo "PLINK installed at: $PLINK_ROOT/plink"
-if command -v plink >/dev/null 2>&1; then
-  echo "plink is on PATH."
-else
-  echo "Add to PATH for this session:"
-  echo "  export PATH=\"$BIN_DIR:\$PATH\""
+
+# Ensure ~/.local/bin is on PATH permanently (persists across Cloud Shell sessions)
+if ! grep -q "$BIN_DIR" "$HOME/.bashrc" 2>/dev/null; then
+  echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$HOME/.bashrc"
+  echo "Added $BIN_DIR to ~/.bashrc (will persist across sessions)."
 fi
+export PATH="$BIN_DIR:$PATH"
+echo "plink is ready. Run 'plink --help' to verify."

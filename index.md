@@ -1,6 +1,6 @@
----
-layout: default
----
+# Sociogenomics 2025/2026
+## Instructor: Prof. Nicola Barban
+## University of Bologna
 
 ## Quick start (Cloud Shell)
 ```
