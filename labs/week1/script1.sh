@@ -65,7 +65,7 @@ grep "^22" hapmap1.map | head
 grep -c "^22" hapmap1.map
 
 # Combining commands with pipes
-grep "^1	" hapmap1.map | wc -l
+grep "^1" hapmap1.map | wc -l
 
 # --- Part III. Data manipulation with AWK ---
 
