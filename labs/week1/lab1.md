@@ -1,7 +1,5 @@
 # Lab 1.  Introducing the Unix shell
 
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/nicolabarban/sociogenomics_2025_2026&cloudshell_tutorial=labs/week1/lab1.md)
-
 ## Description
 
 ## Part I . Managing files and directories.
@@ -126,17 +124,9 @@ Download GWAS summary statistics from UK Biobank
 http://www.nealelab.is/uk-biobank
 
 ```
-     
-wget -O sumstatsUKB_height.tsv.gz https://www.dropbox.com/s/ou12jm89v74k55e/50_irnt.gwas.imputed_v3.both_sexes.tsv.bgz?dl= 
+curl -L -o sumstatsUKB_height.tsv.gz "https://www.dropbox.com/s/ou12jm89v74k55e/50_irnt.gwas.imputed_v3.both_sexes.tsv.bgz?dl=1"
 
 gunzip -d sumstatsUKB_height.tsv.gz
-
-```
-
-
-Alternative command if wget is not installed in your system 
-```
-curl -L -o sumstatsUKB_height.tsv.gz https://www.dropbox.com/s/ou12jm89v74k55e/50_irnt.gwas.imputed_v3.both_sexes.tsv.bgz?dl=
 ```
 
 Have a look at the data
