@@ -1,155 +1,351 @@
-# Lab Week 2. Getting started with Plink
+# Lab 2. Getting Started with PLINK
 
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.png)](https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/nicolabarban/sociogenomics_2025_2026&cloudshell_tutorial=labs/week2/lab2.md)
+In this lab you will install PLINK on Google Cloud Shell and learn how to work with genetic data in PLINK format. By the end you will be able to convert between file formats, compute summary statistics, and filter SNPs and individuals.
 
-## Installing Plink in your system
-PLINK is a free, open-source software package for genomic data analysis. It was originally designed for analyzing genetic association studies, particularly for case-control studies and family-based studies. PLINK can perform various tasks related to genetic data analysis, including data management, quality control, association analysis, haplotype analysis, and population stratification correction.
+---
 
-PLINK is widely used in the field of human genetics and has been cited in numerous scientific publications. It is compatible with various file formats commonly used in genetics research, such as VCF, BED, and PED formats. PLINK is available for download on the project's website and is actively maintained by a team of developers.
+## 0. Getting started
 
+Open [Google Cloud Shell](https://shell.cloud.google.com/) in your browser.
 
-**Let's start from our home directory** 
+If you have not already cloned the course repository (from Lab 1), run:
+
 ```
+cd $HOME
+git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
+```
+
+If you already cloned it, pull the latest updates:
+
+```
+cd ~/sociogenomics_2025_2026
+git pull
 cd $HOME
 ```
 
-
-PLINK is available from [here:](https://www.cog-genomics.org/plink/)
-We use (for now) PLINK 1.9. For Cloud Shell/Colab, use the setup script:
+Make sure your project directories from Lab 1 still exist:
 
 ```
-bash scripts/setup_plink19.sh
+mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts
 ```
 
-If you prefer a manual download, you can still run:
-```
-wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20230116.zip
-unzip plink_linux_x86_64_20230116.zip
-```
-
-let's check file permission. We need to make plink executable to use it as software
-```
-ls -l
-```
-
-Check file permissions
-* chmod +rwx filename to add permissions.
-* chmod -rwx directoryname to remove permissions.
-* chmod +x filename to allow executable permissions.
-* chmod -wx filename to take out write and executable permissions.
-
-
-
-This is how we make the file executable (only if you downloaded manually)
-```
-chmod +x plink
-```
-
-If you used the setup script, `plink` is already on your PATH. Otherwise you can execute with `./`.
-```
-plink --help 
+Copy the HapMap data (if you have not already):
 
 ```
-
-
-Now we can access PLINK from this directory
-
-```
-pwd
-plink --help 
+cp ~/sociogenomics_2025_2026/data/hapmap1.map ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/hapmap1.ped ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/BMI_pheno.txt ~/Sociogenomics/Data/
 ```
 
+---
 
-### Get the plink files  from Hapmap
+## 1. Installing PLINK
 
-1. download the data using this command
+PLINK is a free, open-source tool for analysing genetic data. It can handle data management, quality control, and association analysis. We use **PLINK 1.9**, available from [cog-genomics.org/plink](https://www.cog-genomics.org/plink/).
 
-```
-wget https://www.nicolabarban.com/sociogenomics_lab/data/hapmap_CEU.bed --no-check-certificate
-wget https://www.nicolabarban.com/sociogenomics_lab/data/hapmap_CEU.bim --no-check-certificate
-wget https://www.nicolabarban.com/sociogenomics_lab/data/hapmap_CEU.fam --no-check-certificate
-```
-
-2. Upload the data using the google shell utility
-
-## How to read PLINK files
-
-![data type](Fig_7_3.jpg)
-
-
-### Read Binary PLINK file
-
-we start with PLINK binary files 
-
-
-1. `.bim` file  contains info on the markers
+Run the setup script from the course repository:
 
 ```
-head hapmap_CEU.bim
+bash ~/sociogenomics_2025_2026/scripts/setup_plink19.sh
 ```
 
-2. `.fam file  contains info on the individuals 
+This downloads PLINK, makes it executable, and adds it to your PATH. Reload your shell so the PATH update takes effect:
 
 ```
-head hapmap_CEU.fam
+source ~/.bashrc
 ```
 
-3. `.bed` files are not readable!
-```
-less hapmap-CEU.bed
-```
-### Recode PLINK file
-
-
-Recode into map and ped files
+Verify the installation:
 
 ```
- plink --bfile hapmap_CEU --recode --out hapmap_CEU
+plink --help
 ```
 
-1. `.map` file  contains info on the markers
+You should see a help message listing PLINK commands and options. If you get `command not found`, close and reopen your Cloud Shell terminal, then try again.
+
+---
+
+## Part I. PLINK file formats
+
+PLINK works with two main file-format families:
+
+| Format | Files | Description |
+|--------|-------|-------------|
+| **Text (PED/MAP)** | `.ped` + `.map` | Human-readable but large and slow |
+| **Binary (BED/BIM/FAM)** | `.bed` + `.bim` + `.fam` | Compact and fast; `.bed` is not human-readable |
+
+### The MAP file
+
+The `.map` file has one row per SNP with 4 columns: chromosome, SNP ID, genetic distance (cM), base-pair position.
 
 ```
-head hapmap_CEU.map
+cd ~/Sociogenomics/Data
+head hapmap1.map
 ```
 
-2. `.ped` file  contains info on the individual genotypes
-```
-less hapmap_CEU.ped
-```
+### The PED file
 
-
-### Select specific markers
-
-In this way we select only a specific marker, in this case SNP `rs9930506`
-```
-
-plink     --bfile hapmap_CEU \
-            --snps  rs9930506 \
-        	--make-bed \
-            --out  rs9930506sample
+The `.ped` file has one row per individual. The first 6 columns are: Family ID, Individual ID, Father ID, Mother ID, Sex (1=male, 2=female), Phenotype. The remaining columns contain two alleles per SNP.
 
 ```
-
-
-### how many observations?
-
-```
- wc -l hapmap_CEU.fam
-```
- 
-### how many variants?
-```
- wc -l hapmap_CEU.bim
+head -2 hapmap1.ped | cut -c1-80
 ```
 
+We use `cut` to show only the first 80 characters because each row is very wide.
 
-## Allele frequency
+### Converting PED/MAP to binary format
 
-### We can calculate allele frequency
-```
-
- plink --bfile hapmap_CEU --freq --out Allele_Frequency
-head Allele_Frequency.frq 
+Binary files are much smaller and faster to process. Convert with `--make-bed`:
 
 ```
+plink --file hapmap1 --make-bed --out hapmap1
+```
+
+- `--file hapmap1` tells PLINK to read `hapmap1.ped` and `hapmap1.map`.
+- `--make-bed` creates binary output files.
+- `--out hapmap1` sets the output file prefix.
+
+Check the three new files:
+
+```
+ls -lh hapmap1.bed hapmap1.bim hapmap1.fam
+```
+
+### The BIM file
+
+The `.bim` file is an extended map file with 6 columns: chromosome, SNP ID, genetic distance, base-pair position, allele 1, allele 2.
+
+```
+head hapmap1.bim
+```
+
+### The FAM file
+
+The `.fam` file has one row per individual with 6 columns: Family ID, Individual ID, Father ID, Mother ID, Sex, Phenotype.
+
+```
+head hapmap1.fam
+```
+
+### The BED file
+
+The `.bed` file stores genotype data in compressed binary. It is **not** human-readable:
+
+```
+head -c 20 hapmap1.bed
+```
+
+You will see garbled characters. This is expected.
+
+### Converting binary back to text
+
+You can convert back to PED/MAP with `--recode`:
+
+```
+plink --bfile hapmap1 --recode --out hapmap1_recoded
+head hapmap1_recoded.map
+```
+
+`--bfile hapmap1` tells PLINK to read the binary files (`hapmap1.bed`, `.bim`, `.fam`).
+
+### Counting individuals and SNPs
+
+```
+wc -l hapmap1.fam
+wc -l hapmap1.bim
+```
+
+**Question:** How many individuals and how many SNPs are in the dataset?
+
+### Exercise 1
+
+1. Look at the PLINK log output from the `--make-bed` step. How many males and females does PLINK report?
+2. How many SNPs are listed in `hapmap1.bim`? Verify this matches the number of lines in `hapmap1.map`.
+3. Use `awk` to count how many SNPs in `hapmap1.bim` are on chromosome 1.
+4. Use `grep` to find the SNP `rs7540009` in `hapmap1.bim`. What are its two alleles?
+
+---
+
+## Part II. Summary statistics with PLINK
+
+PLINK can compute a range of useful summary statistics directly from binary files.
+
+### Allele frequencies
+
+Calculate the minor allele frequency (MAF) for every SNP:
+
+```
+plink --bfile hapmap1 --freq --out allele_freq
+```
+
+Inspect the output:
+
+```
+head allele_freq.frq
+```
+
+The `.frq` file has columns: CHR, SNP, A1 (minor allele), A2 (major allele), MAF, NCHROBS (number of allele observations).
+
+Find the frequency of a specific SNP:
+
+```
+grep rs7540009 allele_freq.frq
+```
+
+### Missing data rates
+
+Compute per-SNP and per-individual missing rates:
+
+```
+plink --bfile hapmap1 --missing --out missing_report
+```
+
+This creates two files:
+
+- `missing_report.imiss` — per-**i**ndividual missing rates
+- `missing_report.lmiss` — per-**l**ocus (SNP) missing rates
+
+```
+head missing_report.imiss
+head missing_report.lmiss
+```
+
+The key column is `F_MISS` — the fraction of missing genotypes.
+
+Find individuals with the highest missingness:
+
+```
+sort -k6 -n -r missing_report.imiss | head
+```
+
+### Hardy-Weinberg equilibrium
+
+Test each SNP for deviation from Hardy-Weinberg equilibrium (HWE):
+
+```
+plink --bfile hapmap1 --hardy --out hwe_report
+```
+
+```
+head hwe_report.hwe
+```
+
+The output shows observed and expected genotype counts and a p-value. SNPs with very low p-values may indicate genotyping errors.
+
+Find SNPs with HWE p-value below 1e-6:
+
+```
+awk '$9 < 1e-6' hwe_report.hwe | head
+```
+
+### Exercise 2
+
+1. What is the minor allele frequency of SNP `rs4558854`? Use the `.frq` file to find it.
+2. How many SNPs have a MAF below 0.05? Hint: use `awk` on the `.frq` file to filter by the MAF column and count with `wc -l`.
+3. Which individual has the highest rate of missing genotypes? What is their missing rate?
+
+---
+
+## Part III. Filtering and extracting data
+
+PLINK makes it easy to create subsets of your data by filtering on SNPs, individuals, or chromosomes.
+
+### Extract a single SNP
+
+Extract only the SNP `rs9930506`:
+
+```
+plink --bfile hapmap1 --snp rs9930506 --make-bed --out rs9930506_only
+```
+
+Check the result:
+
+```
+wc -l rs9930506_only.bim
+wc -l rs9930506_only.fam
+```
+
+You should see 1 SNP and the same number of individuals as the original file.
+
+### Extract a range of SNPs
+
+Extract SNPs between `rs9930506` and `rs4558854` (inclusive, based on genomic order within a chromosome):
+
+```
+plink --bfile hapmap1 --from rs9930506 --to rs4558854 --make-bed --out snp_range
+wc -l snp_range.bim
+```
+
+### Extract SNPs from a list
+
+Create a text file with one SNP ID per line:
+
+```
+echo -e "rs9930506\nrs4558854\nrs7540009" > snp_list.txt
+cat snp_list.txt
+```
+
+Use `--extract` to keep only these SNPs:
+
+```
+plink --bfile hapmap1 --extract snp_list.txt --make-bed --out selected_snps
+wc -l selected_snps.bim
+```
+
+### Filter by chromosome
+
+Keep only SNPs on chromosome 22:
+
+```
+plink --bfile hapmap1 --chr 22 --make-bed --out chr22_only
+wc -l chr22_only.bim
+```
+
+### Filter by minor allele frequency
+
+Keep only common SNPs (MAF >= 0.05):
+
+```
+plink --bfile hapmap1 --maf 0.05 --make-bed --out common_snps
+wc -l common_snps.bim
+```
+
+Compare with the total number of SNPs:
+
+```
+wc -l hapmap1.bim
+```
+
+**Question:** How many SNPs were removed by the MAF filter?
+
+### Filter by missingness
+
+Remove SNPs with more than 2% missing data and individuals with more than 5% missing data:
+
+```
+plink --bfile hapmap1 --geno 0.02 --mind 0.05 --make-bed --out qc_filtered
+```
+
+Check the log to see how many SNPs and individuals were removed.
+
+### Combine filters
+
+You can combine multiple filters in a single command:
+
+```
+plink --bfile hapmap1 --chr 1 --maf 0.01 --geno 0.02 --make-bed --out chr1_clean
+wc -l chr1_clean.bim
+wc -l chr1_clean.fam
+```
+
+### Exercise 3
+
+1. Extract all SNPs on chromosome 6 with a MAF above 0.10 into a new binary file called `chr6_common`. How many SNPs remain?
+2. Create a text file with three SNP IDs of your choice (look at `hapmap1.bim` for options). Use `--extract` to create a new dataset with only those SNPs. Verify the number of SNPs in the output `.bim` file.
+3. Apply the following quality control filters to the full dataset and create a cleaned file called `hapmap1_qc`:
+   - Remove SNPs with more than 5% missing data (`--geno 0.05`)
+   - Remove individuals with more than 10% missing data (`--mind 0.10`)
+   - Remove SNPs with MAF below 0.01 (`--maf 0.01`)
+   - Remove SNPs that deviate from Hardy-Weinberg equilibrium with p < 1e-6 (`--hwe 1e-6`)
+
+   How many SNPs and individuals remain after QC? Check the PLINK log output.

@@ -13,19 +13,13 @@
 * [Lab](labs/week1/lab1.md)
 
 
-<!--
-## Students' presentations
-* [Topics and Instructions](presentations.md)
-
-
-
 ## Week 2
-
 
 * [Lab](labs/week2/lab2.md)
 
-### Data
-* [data](https://www.dropbox.com/scl/fo/vhd9e87zpcpmfv5dk0acn/AIexpTssvIqr3x-jBWt4sfw?rlkey=x7ebz9qdavj0cya8vez7e2s55&dl=0)
+<!--
+## Students' presentations
+* [Topics and Instructions](presentations.md)
 
 
 
