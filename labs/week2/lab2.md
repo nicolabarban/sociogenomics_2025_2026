@@ -2,7 +2,7 @@
 
 In this lab you will install PLINK on Google Cloud Shell and learn how to work with genetic data in PLINK format. By the end you will be able to convert between file formats, compute summary statistics, and filter SNPs and individuals.
 
-We use the **1000 Genomes HapMap3** dataset (`1kg_hm3`), which contains 1,092 individuals and ~851,000 SNPs.
+We use the **HapMap Phase III** dataset (`hapmap3`), which contains 1,184 individuals and ~1.4 million SNPs.
 
 ---
 
@@ -41,12 +41,12 @@ Make sure your project directories from Lab 1 still exist:
 mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts
 ```
 
-Copy the 1000 Genomes data:
+Copy the HapMap data:
 
 ```
-cp ~/sociogenomics_2025_2026/data/1kg_hm3.bed ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/1kg_hm3.bim ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/1kg_hm3.fam ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/hapmap3.bed ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/hapmap3.bim ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/hapmap3.fam ~/Sociogenomics/Data/
 cp ~/sociogenomics_2025_2026/data/BMI_pheno.txt ~/Sociogenomics/Data/
 ```
 
@@ -87,7 +87,7 @@ PLINK works with two main file-format families:
 | **Text (PED/MAP)** | `.ped` + `.map` | Human-readable but large and slow |
 | **Binary (BED/BIM/FAM)** | `.bed` + `.bim` + `.fam` | Compact and fast; `.bed` is not human-readable |
 
-Our `1kg_hm3` dataset is already in **binary format**. Let's explore each file.
+Our `hapmap3` dataset is already in **binary format**. Let's explore each file.
 
 ### The BIM file
 
@@ -95,7 +95,7 @@ The `.bim` file is an extended map file with one row per SNP and 6 columns: chro
 
 ```
 cd ~/Sociogenomics/Data
-head 1kg_hm3.bim
+head hapmap3.bim
 ```
 
 ### The FAM file
@@ -103,7 +103,7 @@ head 1kg_hm3.bim
 The `.fam` file has one row per individual with 6 columns: Family ID, Individual ID, Father ID, Mother ID, Sex (1=male, 2=female), Phenotype (-9=missing).
 
 ```
-head 1kg_hm3.fam
+head hapmap3.fam
 ```
 
 ### The BED file
@@ -111,7 +111,7 @@ head 1kg_hm3.fam
 The `.bed` file stores genotype data in compressed binary. It is **not** human-readable:
 
 ```
-head -c 20 1kg_hm3.bed
+head -c 20 hapmap3.bed
 ```
 
 You will see garbled characters. This is expected.
@@ -119,8 +119,8 @@ You will see garbled characters. This is expected.
 ### Counting individuals and SNPs
 
 ```
-wc -l 1kg_hm3.fam
-wc -l 1kg_hm3.bim
+wc -l hapmap3.fam
+wc -l hapmap3.bim
 ```
 
 **Question:** How many individuals and how many SNPs are in the dataset?
@@ -130,14 +130,14 @@ wc -l 1kg_hm3.bim
 You can convert binary files to PED/MAP with `--recode`:
 
 ```
-plink --bfile 1kg_hm3 --chr 22 --recode --out 1kg_chr22_text
+plink --bfile hapmap3 --chr 22 --recode --out hapmap3_chr22_text
 ```
 
 We add `--chr 22` to convert only chromosome 22 (the full dataset would produce a very large PED file).
 
 ```
-head 1kg_chr22_text.map
-head -2 1kg_chr22_text.ped | cut -c1-80
+head hapmap3_chr22_text.map
+head -2 hapmap3_chr22_text.ped | cut -c1-80
 ```
 
 The `.map` file has 4 columns: chromosome, SNP ID, genetic distance, base-pair position.
@@ -149,8 +149,8 @@ The `.ped` file has one row per individual. The first 6 columns are: Family ID, 
 Convert back to binary with `--make-bed`:
 
 ```
-plink --file 1kg_chr22_text --make-bed --out 1kg_chr22_binary
-ls -lh 1kg_chr22_binary.bed 1kg_chr22_binary.bim 1kg_chr22_binary.fam
+plink --file hapmap3_chr22_text --make-bed --out hapmap3_chr22_binary
+ls -lh hapmap3_chr22_binary.bed hapmap3_chr22_binary.bim hapmap3_chr22_binary.fam
 ```
 
 Notice how much smaller the binary files are compared to the text files.
@@ -158,9 +158,9 @@ Notice how much smaller the binary files are compared to the text files.
 ### Exercise 1
 
 1. How many individuals are in the dataset? How many are male and how many are female? Hint: use `awk` on the `.fam` file to count by the sex column.
-2. How many SNPs are in `1kg_hm3.bim`?
-3. Use `awk` to count how many SNPs in `1kg_hm3.bim` are on chromosome 1.
-4. Use `grep` to find the SNP `rs9930506` in `1kg_hm3.bim`. What chromosome is it on and what are its two alleles?
+2. How many SNPs are in `hapmap3.bim`?
+3. Use `awk` to count how many SNPs in `hapmap3.bim` are on chromosome 1.
+4. Use `grep` to find the SNP `rs9930506` in `hapmap3.bim`. What chromosome is it on and what are its two alleles?
 
 ---
 
@@ -173,7 +173,7 @@ PLINK can compute a range of useful summary statistics directly from binary file
 Calculate the minor allele frequency (MAF) for every SNP:
 
 ```
-plink --bfile 1kg_hm3 --freq --out allele_freq
+plink --bfile hapmap3 --freq --out allele_freq
 ```
 
 Inspect the output:
@@ -195,7 +195,7 @@ grep rs9930506 allele_freq.frq
 Compute per-SNP and per-individual missing rates:
 
 ```
-plink --bfile 1kg_hm3 --missing --out missing_report
+plink --bfile hapmap3 --missing --out missing_report
 ```
 
 This creates two files:
@@ -221,7 +221,7 @@ sort -k6 -n -r missing_report.imiss | head
 Test each SNP for deviation from Hardy-Weinberg equilibrium (HWE):
 
 ```
-plink --bfile 1kg_hm3 --hardy --out hwe_report
+plink --bfile hapmap3 --hardy --out hwe_report
 ```
 
 ```
@@ -253,7 +253,7 @@ PLINK makes it easy to create subsets of your data by filtering on SNPs, individ
 Extract only the SNP `rs9930506`:
 
 ```
-plink --bfile 1kg_hm3 --snp rs9930506 --make-bed --out rs9930506_only
+plink --bfile hapmap3 --snp rs9930506 --make-bed --out rs9930506_only
 ```
 
 Check the result:
@@ -270,7 +270,7 @@ You should see 1 SNP and the same number of individuals as the original file.
 Extract SNPs between `rs3751813` and `rs8044769` (inclusive, based on genomic order within a chromosome):
 
 ```
-plink --bfile 1kg_hm3 --from rs3751813 --to rs8044769 --make-bed --out snp_range
+plink --bfile hapmap3 --from rs3751813 --to rs8044769 --make-bed --out snp_range
 wc -l snp_range.bim
 ```
 
@@ -286,7 +286,7 @@ cat snp_list.txt
 Use `--extract` to keep only these SNPs:
 
 ```
-plink --bfile 1kg_hm3 --extract snp_list.txt --make-bed --out selected_snps
+plink --bfile hapmap3 --extract snp_list.txt --make-bed --out selected_snps
 wc -l selected_snps.bim
 ```
 
@@ -295,7 +295,7 @@ wc -l selected_snps.bim
 Keep only SNPs on chromosome 22:
 
 ```
-plink --bfile 1kg_hm3 --chr 22 --make-bed --out chr22_only
+plink --bfile hapmap3 --chr 22 --make-bed --out chr22_only
 wc -l chr22_only.bim
 ```
 
@@ -304,14 +304,14 @@ wc -l chr22_only.bim
 Keep only common SNPs (MAF >= 0.05):
 
 ```
-plink --bfile 1kg_hm3 --maf 0.05 --make-bed --out common_snps
+plink --bfile hapmap3 --maf 0.05 --make-bed --out common_snps
 wc -l common_snps.bim
 ```
 
 Compare with the total number of SNPs:
 
 ```
-wc -l 1kg_hm3.bim
+wc -l hapmap3.bim
 ```
 
 **Question:** How many SNPs were removed by the MAF filter?
@@ -321,7 +321,7 @@ wc -l 1kg_hm3.bim
 Remove SNPs with more than 2% missing data and individuals with more than 5% missing data:
 
 ```
-plink --bfile 1kg_hm3 --geno 0.02 --mind 0.05 --make-bed --out qc_filtered
+plink --bfile hapmap3 --geno 0.02 --mind 0.05 --make-bed --out qc_filtered
 ```
 
 Check the log to see how many SNPs and individuals were removed.
@@ -331,7 +331,7 @@ Check the log to see how many SNPs and individuals were removed.
 You can combine multiple filters in a single command:
 
 ```
-plink --bfile 1kg_hm3 --chr 1 --maf 0.01 --geno 0.02 --make-bed --out chr1_clean
+plink --bfile hapmap3 --chr 1 --maf 0.01 --geno 0.02 --make-bed --out chr1_clean
 wc -l chr1_clean.bim
 wc -l chr1_clean.fam
 ```
@@ -339,8 +339,8 @@ wc -l chr1_clean.fam
 ### Exercise 3
 
 1. Extract all SNPs on chromosome 6 with a MAF above 0.10 into a new binary file called `chr6_common`. How many SNPs remain?
-2. Create a text file with three SNP IDs of your choice (look at `1kg_hm3.bim` for options). Use `--extract` to create a new dataset with only those SNPs. Verify the number of SNPs in the output `.bim` file.
-3. Apply the following quality control filters to the full dataset and create a cleaned file called `1kg_hm3_qc`:
+2. Create a text file with three SNP IDs of your choice (look at `hapmap3.bim` for options). Use `--extract` to create a new dataset with only those SNPs. Verify the number of SNPs in the output `.bim` file.
+3. Apply the following quality control filters to the full dataset and create a cleaned file called `hapmap3_qc`:
    - Remove SNPs with more than 5% missing data (`--geno 0.05`)
    - Remove individuals with more than 10% missing data (`--mind 0.10`)
    - Remove SNPs with MAF below 0.01 (`--maf 0.01`)
