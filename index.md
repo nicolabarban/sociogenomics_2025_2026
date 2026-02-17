@@ -23,6 +23,7 @@
 
 
 
+<!--
 ## Week 3
 
 * [Lab 3](labs/week3/lab3.md)
