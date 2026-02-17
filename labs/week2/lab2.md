@@ -10,11 +10,17 @@ We use the **1000 Genomes HapMap3** dataset (`1kg_hm3`), which contains 1,092 in
 
 Open [Google Cloud Shell](https://shell.cloud.google.com/) in your browser.
 
+First, install Git LFS (needed to download the data files):
+
+```
+sudo apt-get install -y git-lfs
+git lfs install
+```
+
 If you have not already cloned the course repository (from Lab 1), run:
 
 ```
 cd $HOME
-git lfs install
 git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
 ```
 
