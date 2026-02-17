@@ -1,4 +1,4 @@
-# Sociogenomics 2024/2025 students' presentations
+# Sociogenomics 2025/2026 students' presentations
 
 ## Structure of the presentations
 ---
@@ -17,8 +17,8 @@
 
 ### 1. Birth of Eugenics 
 
-* [Bad Blood podcast Episode 1](https://www.bbc.co.uk/sounds/play/m001fm8m)
-* [Bad Blood podcast Episode 2](https://www.bbc.co.uk/sounds/play/m001fd36)
+* [Bad Blood podcast Episode 1](https://www.bbc.com/audio/play/p0dr4wq4)
+* [Bad Blood podcast Episode 2](https://www.bbc.com/audio/play/p0dr4zc4)
 
 ### 2. Ancestry and Genetics 
 
@@ -35,9 +35,12 @@
 
 ### 4. Newgenics 
 
-* [Bad Blood podcast Episode 5](https://www.bbc.co.uk/sounds/play/m001g927)
-* [Bad Blood podcast Episode 6](https://www.bbc.co.uk/sounds/play/m001gj50)
+* [Bad Blood podcast Episode 5](https://www.bbc.com/audio/play/p0dr57nh)
+* [Bad Blood podcast Episode 6](https://www.bbc.com/audio/play/p0dsvnmr)
 * [link to AMCG paper](https://www.gimjournal.org/article/S1098-3600(23)01068-7/fulltext)
+
+
+<!--
 
 ### 5. Twin Studies and  Heritability
 
@@ -69,3 +72,4 @@
 * [Socio-economic status is a social construct with heritable components and genetic consequences](https://pmc.ncbi.nlm.nih.gov/articles/PMC7617559/pdf/EMS204020.pdf)
 * [Using genetics for social science](https://pmc.ncbi.nlm.nih.gov/articles/PMC8240138/pdf/nihms-1717352.pdf)
 
+-->
