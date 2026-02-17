@@ -14,6 +14,7 @@ If you have not already cloned the course repository (from Lab 1), run:
 
 ```
 cd $HOME
+git lfs install
 git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
 ```
 
@@ -22,8 +23,11 @@ If you already cloned it, pull the latest updates:
 ```
 cd ~/sociogenomics_2025_2026
 git pull
+git lfs pull
 cd $HOME
 ```
+
+> **Note:** The data files are stored with Git LFS. The `git lfs pull` command downloads the actual file contents. If you skip this step, the data files will contain only small text pointers instead of real data.
 
 Make sure your project directories from Lab 1 still exist:
 

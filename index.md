@@ -18,7 +18,6 @@
 * [Lab](labs/week2/lab2.md)
 * [Solutions](labs/week2/lab2_solutions.md)
 
-<!--
 ## Students' presentations
 * [Topics and Instructions](presentations.md)
 
