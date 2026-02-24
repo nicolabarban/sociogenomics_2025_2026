@@ -22,16 +22,12 @@
 * [Topics and Instructions](presentations.md)
 
 
-
-<!--
 ## Week 3
 
 * [Lab 3](labs/week3/lab3.md)
-### Data
-* [week3.zip](https://www.dropbox.com/scl/fi/kvsdtvsl3m4gl19omle1y/week3.zip?rlkey=3fyj402e77jsvo97iwz8ke7sc&dl=0
-)
 
 
+<!--
 ## Week 4
 
 * [Lab 4](labs/week4/lab4.md)
