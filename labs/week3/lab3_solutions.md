@@ -4,13 +4,13 @@
 
 ## Exercise 1 (Linkage Disequilibrium and Population Comparison)
 
-### 1. What is the r-squared between rs994335 and rs2379903 in the full sample? How does it compare across EUR, AFR, and EAS?
+### 1. What is the r-squared between rs4819391 and rs9605927 in the full sample? How does it compare across EUR, AFR, and EAS?
 
 **Full sample:**
 
 ```bash
 plink --bfile hapmap3_qc \
-      --ld rs994335 rs2379903 \
+      --ld rs4819391 rs9605927 \
       --out ld_pair
 grep "R-sq" ld_pair.log
 ```
@@ -21,15 +21,15 @@ Report the R-sq value from the log output.
 
 ```bash
 plink --bfile hapmap3_qc --keep samples_EUR.txt \
-      --ld rs994335 rs2379903 --out ld_EUR
+      --ld rs4819391 rs9605927 --out ld_EUR
 grep "R-sq" ld_EUR.log
 
 plink --bfile hapmap3_qc --keep samples_AFR.txt \
-      --ld rs994335 rs2379903 --out ld_AFR
+      --ld rs4819391 rs9605927 --out ld_AFR
 grep "R-sq" ld_AFR.log
 
 plink --bfile hapmap3_qc --keep samples_EAS.txt \
-      --ld rs994335 rs2379903 --out ld_EAS
+      --ld rs4819391 rs9605927 --out ld_EAS
 grep "R-sq" ld_EAS.log
 ```
 

@@ -231,7 +231,7 @@ Calculate $r^2$ between two SNPs on chromosome 22:
 
 ```bash
 plink --bfile hapmap3_qc \
-      --ld rs994335 rs2379903 \
+      --ld rs4819391 rs9605927 \
       --out ld_pair
 cat ld_pair.log | grep -A5 "LD"
 ```
@@ -332,31 +332,31 @@ awk -F'\t' 'NR>1 && $6 == "EAS" {print $1, $1}' 1kg_samples.txt > samples_EAS.tx
 Check how many individuals from each group are in our dataset:
 
 ```bash
-plink --bfile hapmap3_qc --keep samples_EUR.txt --make-just-fam --out check_EUR 2>/dev/null
+plink --bfile hapmap3_qc --keep samples_EUR.txt --make-just-fam --out check_EUR
 wc -l check_EUR.fam
 
-plink --bfile hapmap3_qc --keep samples_AFR.txt --make-just-fam --out check_AFR 2>/dev/null
+plink --bfile hapmap3_qc --keep samples_AFR.txt --make-just-fam --out check_AFR
 wc -l check_AFR.fam
 
-plink --bfile hapmap3_qc --keep samples_EAS.txt --make-just-fam --out check_EAS 2>/dev/null
+plink --bfile hapmap3_qc --keep samples_EAS.txt --make-just-fam --out check_EAS
 wc -l check_EAS.fam
 ```
 
 ### Pairwise LD in different populations
 
-Compare the $r^2$ between `rs994335` and `rs2379903` across populations:
+Compare the $r^2$ between `rs4819391` and `rs9605927` across populations:
 
 ```bash
 plink --bfile hapmap3_qc --keep samples_EUR.txt \
-      --ld rs994335 rs2379903 --out ld_EUR
+      --ld rs4819391 rs9605927 --out ld_EUR
 grep "R-sq" ld_EUR.log
 
 plink --bfile hapmap3_qc --keep samples_AFR.txt \
-      --ld rs994335 rs2379903 --out ld_AFR
+      --ld rs4819391 rs9605927 --out ld_AFR
 grep "R-sq" ld_AFR.log
 
 plink --bfile hapmap3_qc --keep samples_EAS.txt \
-      --ld rs994335 rs2379903 --out ld_EAS
+      --ld rs4819391 rs9605927 --out ld_EAS
 grep "R-sq" ld_EAS.log
 ```
 
@@ -404,7 +404,7 @@ You should observe that:
 
 ### Exercise 1
 
-1. What is the $r^2$ value between `rs994335` and `rs2379903` in the full sample? How does it compare in EUR, AFR, and EAS?
+1. What is the $r^2$ value between `rs4819391` and `rs9605927` in the full sample? How does it compare in EUR, AFR, and EAS?
 2. On chromosome 22, find the 5 SNP pairs with the highest $r^2$ in the EUR population. Are the same pairs also in high LD in AFR?
 3. Does LD generally increase or decrease with physical distance between SNPs? Which population shows the fastest LD decay and why?
 
@@ -586,7 +586,7 @@ LDlink is a web-based tool backed by the 1000 Genomes Project data. It offers:
 - **SNPchip** — check if a SNP is on common genotyping arrays
 - **RegulomeDB integration** — functional annotation of LD proxies
 
-**Try it:** Look up `rs994335` and `rs2379903` in the **JPT+CHB** population and compare with the PLINK result you computed above.
+**Try it:** Look up `rs4819391` and `rs9605927` in the **JPT+CHB** population and compare with the PLINK result you computed above.
 
 ---
 
