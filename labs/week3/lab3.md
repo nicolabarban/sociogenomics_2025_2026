@@ -32,6 +32,7 @@ cp ~/sociogenomics_2025_2026/data/hapmap3.bed ~/Sociogenomics/Data/
 cp ~/sociogenomics_2025_2026/data/hapmap3.bim ~/Sociogenomics/Data/
 cp ~/sociogenomics_2025_2026/data/hapmap3.fam ~/Sociogenomics/Data/
 cp ~/sociogenomics_2025_2026/data/BMI_pheno.txt ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/1kg_samples.txt ~/Sociogenomics/Data/
 ```
 
 Move to your working data directory:
@@ -213,13 +214,6 @@ Find outliers — flag individuals with $F < -0.15$ or $F > 0.15$:
 awk 'NR>1 && ($6 < -0.15 || $6 > 0.15) {print $1, $2, $6}' qc_het.het
 ```
 
-### Exercise 1
-
-1. How many SNPs and individuals remain in `hapmap3_qc` after the combined QC filter?
-2. How many SNPs are removed by LD pruning? What fraction of post-QC SNPs does this represent?
-3. Are there any individuals with an extreme inbreeding coefficient ($|F| > 0.15$) in the HapMap data? What might this indicate?
-4. Why do we apply LD pruning *before* the heterozygosity and relatedness checks, rather than after?
-
 ---
 
 ## Part II. Linkage Disequilibrium
@@ -233,11 +227,11 @@ The most common measure is $r^2$ — the squared Pearson correlation between all
 
 ### Pairwise LD between specific SNPs
 
-Calculate $r^2$ between two specific SNPs:
+Calculate $r^2$ between two SNPs on chromosome 22:
 
 ```bash
 plink --bfile hapmap3_qc \
-      --ld rs1048488 rs3115850 \
+      --ld rs994335 rs2379903 \
       --out ld_pair
 cat ld_pair.log | grep -A5 "LD"
 ```
@@ -295,50 +289,124 @@ awk 'NR>1 {
 
 This shows mean $r^2$ by distance (in kb). You should see a clear **LD decay** — $r^2$ decreasing as SNPs get further apart.
 
-### Compare LD between population groups
+### Compare LD across populations
 
-HapMap3 contains individuals from multiple ancestry groups. LD patterns differ across populations. Let's compare LD for the same SNP pair in different populations.
+LD patterns differ across populations due to different demographic histories (bottlenecks, admixture, effective population size). African populations typically have **shorter LD blocks** because of their larger effective population size and older history, while out-of-Africa populations (European, East Asian) tend to have **longer LD blocks** due to founder effects.
 
-First, check what population labels are in the FAM file:
+The course repository includes a sample information file from the **1000 Genomes Project** that maps individuals to populations and superpopulations.
 
-```bash
-awk '{print $1}' hapmap3.fam | sort | uniq -c | sort -n -r | head -20
-```
-
-Extract European-ancestry individuals (CEU in HapMap):
+First, copy it to your working directory:
 
 ```bash
-awk '$1 == "CEU" {print $1, $2}' hapmap3.fam > samples_CEU.txt
-wc -l samples_CEU.txt
-
-plink --bfile hapmap3_qc \
-      --keep samples_CEU.txt \
-      --ld rs1048488 rs3115850 \
-      --out ld_CEU
-cat ld_CEU.log | grep -A5 "R-sq"
+cp ~/sociogenomics_2025_2026/data/1kg_samples.txt ~/Sociogenomics/Data/
 ```
 
-Extract Yoruba (YRI) individuals:
+Explore the file:
 
 ```bash
-awk '$1 == "YRI" {print $1, $2}' hapmap3.fam > samples_YRI.txt
-wc -l samples_YRI.txt
-
-plink --bfile hapmap3_qc \
-      --keep samples_YRI.txt \
-      --ld rs1048488 rs3115850 \
-      --out ld_YRI
-cat ld_YRI.log | grep -A5 "R-sq"
+head -5 1kg_samples.txt
 ```
 
-**Question:** Are the LD values the same in CEU and YRI? Why might they differ?
+The columns are: Sample name, Sex, Biosample ID, Population code, Population name, Superpopulation code, Superpopulation name, Data collections.
 
-### Exercise 2
+Count individuals per superpopulation:
 
-1. What is the $r^2$ value between `rs1048488` and `rs3115850` in the full sample? Is it the same in CEU and YRI?
-2. On chromosome 22, find the 5 SNP pairs with the highest $r^2$. What are their physical distances?
-3. Does LD generally increase or decrease with physical distance between SNPs? Is this what you expected?
-4. After LD pruning (from Part I), how many SNPs remained? Compare with the number before pruning. What window size and $r^2$ threshold did we use?
+```bash
+awk -F'\t' 'NR>1 {print $6, $7}' 1kg_samples.txt | sort | uniq -c | sort -n -r
+```
+
+You should see five groups: **AFR** (African), **EUR** (European), **EAS** (East Asian), **SAS** (South Asian), **AMR** (American/Admixed).
+
+### Create population-specific sample lists
+
+We need to create PLINK-compatible sample lists (two columns: FID IID) for each superpopulation. We match the sample names from `1kg_samples.txt` against the individuals in our dataset.
+
+Create sample lists for three superpopulations:
+
+```bash
+awk -F'\t' 'NR>1 && $6 == "EUR" {print $1, $1}' 1kg_samples.txt > samples_EUR.txt
+awk -F'\t' 'NR>1 && $6 == "AFR" {print $1, $1}' 1kg_samples.txt > samples_AFR.txt
+awk -F'\t' 'NR>1 && $6 == "EAS" {print $1, $1}' 1kg_samples.txt > samples_EAS.txt
+```
+
+Check how many individuals from each group are in our dataset:
+
+```bash
+plink --bfile hapmap3_qc --keep samples_EUR.txt --make-just-fam --out check_EUR 2>/dev/null
+wc -l check_EUR.fam
+
+plink --bfile hapmap3_qc --keep samples_AFR.txt --make-just-fam --out check_AFR 2>/dev/null
+wc -l check_AFR.fam
+
+plink --bfile hapmap3_qc --keep samples_EAS.txt --make-just-fam --out check_EAS 2>/dev/null
+wc -l check_EAS.fam
+```
+
+### Pairwise LD in different populations
+
+Compare the $r^2$ between `rs994335` and `rs2379903` across populations:
+
+```bash
+plink --bfile hapmap3_qc --keep samples_EUR.txt \
+      --ld rs994335 rs2379903 --out ld_EUR
+grep "R-sq" ld_EUR.log
+
+plink --bfile hapmap3_qc --keep samples_AFR.txt \
+      --ld rs994335 rs2379903 --out ld_AFR
+grep "R-sq" ld_AFR.log
+
+plink --bfile hapmap3_qc --keep samples_EAS.txt \
+      --ld rs994335 rs2379903 --out ld_EAS
+grep "R-sq" ld_EAS.log
+```
+
+**Question:** Is the $r^2$ the same across all three populations? Which population shows the lowest LD?
+
+### LD decay across populations
+
+Compute LD on chromosome 22 separately for each population and compare the decay patterns:
+
+```bash
+for POP in EUR AFR EAS; do
+    plink --bfile hapmap3_qc \
+          --keep samples_${POP}.txt \
+          --chr 22 \
+          --r2 \
+          --ld-window 100 \
+          --ld-window-kb 1000 \
+          --ld-window-r2 0.05 \
+          --out ld_chr22_${POP}
+done
+```
+
+Compute mean $r^2$ by distance bin for each population:
+
+```bash
+for POP in EUR AFR EAS; do
+    echo "=== $POP ==="
+    awk 'NR>1 {
+        dist = ($5 - $2)
+        if (dist < 0) dist = -dist
+        bin = int(dist/10000)
+        count[bin]++
+        sumr2[bin] += $7
+    } END {
+        for (b in count) printf "%d kb\t%.4f\n", b*10, sumr2[b]/count[b]
+    }' ld_chr22_${POP}.ld | sort -k1 -n | head -15
+    echo ""
+done
+```
+
+You should observe that:
+- **AFR** has the fastest LD decay (lowest $r^2$ at every distance) — reflecting the large ancestral effective population size
+- **EUR** and **EAS** have slower decay (higher $r^2$) — reflecting bottlenecks during the out-of-Africa migration
+- All populations show the same general pattern: LD decreases with distance
+
+### Exercise 1
+
+1. What is the $r^2$ value between `rs994335` and `rs2379903` in the full sample? How does it compare in EUR, AFR, and EAS?
+2. On chromosome 22, find the 5 SNP pairs with the highest $r^2$ in the EUR population. Are the same pairs also in high LD in AFR?
+3. Does LD generally increase or decrease with physical distance between SNPs? Which population shows the fastest LD decay and why?
 
 ---
 
@@ -386,10 +454,20 @@ Count them:
 awk 'NR>1 && $10 > 0.20' ibd_results.genome | wc -l
 ```
 
-Find likely duplicates or MZ twins (PI\_HAT > 0.90):
+Find likely parent-offspring or full sibling pairs (PI\_HAT between 0.40 and 0.60):
 
 ```bash
-awk 'NR>1 && $10 > 0.90 {print $1, $2, $3, $4, $10}' ibd_results.genome
+awk 'NR>1 && $10 > 0.40 && $10 < 0.60 {print $1, $2, $3, $4, $10}' ibd_results.genome
+```
+
+You can distinguish parent-offspring from full siblings using the Z columns:
+- **Parent-offspring:** Z0 ≈ 0, Z1 ≈ 1, Z2 ≈ 0 (always share exactly 1 allele IBD)
+- **Full siblings:** Z0 ≈ 0.25, Z1 ≈ 0.50, Z2 ≈ 0.25 (share 0, 1, or 2 alleles)
+
+Print the Z values for the closest pairs:
+
+```bash
+awk 'NR>1 && $10 > 0.40 {print $1, $2, $3, $4, "Z0="$7, "Z1="$8, "Z2="$9, "PI_HAT="$10}' ibd_results.genome | sort -k8 -n -r
 ```
 
 **Note:** In a QC pipeline, you would remove one individual from each related pair. Typically, you keep the individual with lower missingness.
@@ -455,15 +533,23 @@ Key columns in both files:
 - `IBS0` — proportion of SNPs with 0 alleles shared identical by state
 - `Kinship` — estimated kinship coefficient
 
-KING kinship coefficients correspond to:
+### Understanding KING kinship coefficients
 
-| Kinship | Relationship |
-|---------|-------------|
-| > 0.354 | Duplicate / MZ twin |
-| 0.177 – 0.354 | 1st degree (parent-offspring, full siblings) |
-| 0.0884 – 0.177 | 2nd degree (half-sibs, grandparent, avuncular) |
-| 0.0442 – 0.0884 | 3rd degree (first cousins) |
-| < 0.0442 | Unrelated |
+The **kinship coefficient** measures the probability that two alleles sampled at random from two individuals are identical by descent. It is related to PI\_HAT but on a different scale:
+
+$$\text{Kinship} \approx \frac{\text{PI\_HAT}}{2}$$
+
+For example, parent-offspring pairs share half their genome IBD (PI\_HAT ≈ 0.50), so their kinship coefficient is ≈ 0.25.
+
+| Kinship | Relationship | Equivalent PI\_HAT |
+|---------|-------------|-------------------|
+| > 0.354 | Duplicate / MZ twin | > 0.708 |
+| 0.177 – 0.354 | 1st degree (parent-offspring, full siblings) | 0.354 – 0.708 |
+| 0.0884 – 0.177 | 2nd degree (half-sibs, grandparent, avuncular) | 0.177 – 0.354 |
+| 0.0442 – 0.0884 | 3rd degree (first cousins) | 0.0884 – 0.177 |
+| < 0.0442 | Unrelated | < 0.0884 |
+
+**Negative kinship values** are expected in KING output. They occur when two individuals come from different populations and share fewer alleles than average — this is not an error.
 
 Find all related pairs (2nd degree or closer):
 
@@ -471,20 +557,15 @@ Find all related pairs (2nd degree or closer):
 awk 'NR>1 && $NF > 0.0884 {print}' king_results.kin0 | sort -k8 -n -r | head -20
 ```
 
-**Key difference from PLINK:** KING reports **kinship coefficients** (approximately PI\_HAT / 2), so a parent-offspring pair has kinship ≈ 0.25, not 0.5. Negative kinship values indicate unrelated individuals from different populations — this is expected and not an error.
+**Why use KING instead of PLINK?** PLINK's `--genome` estimates allele frequencies from the full sample. If the sample includes multiple ancestry groups, the frequency estimates are wrong for each group, which inflates PI\_HAT between unrelated individuals from the same population. KING avoids this by using a method that does not depend on allele frequency estimates — it compares genotypes directly between each pair.
 
-For more details on KING commands and options: [https://www.kingrelatedness.com/manual.shtml](https://www.kingrelatedness.com/manual.shtml)
+For more details on KING: [https://www.kingrelatedness.com/manual.shtml](https://www.kingrelatedness.com/manual.shtml)
 
-### Exercise 3
+### Exercise 2
 
-1. How many pairs of individuals in HapMap3 have a PI\_HAT > 0.20? What is the likely family relationship for the pair with the highest PI\_HAT?
-2. What is the theoretical PI\_HAT for:
-   - Monozygotic (identical) twins?
-   - Parent–offspring pairs?
-   - Full siblings?
-   - First cousins?
-3. Why does KING perform better than PLINK's `--genome` in samples with mixed ancestry? (*Hint: think about what happens to allele sharing when two individuals are from different populations.*)
-4. In a GWAS study design, if you identify two first-degree relatives in your sample, which one would you remove and why?
+1. How many pairs of individuals in HapMap3 have a PI\_HAT > 0.20? Look at the Z0, Z1, Z2 columns of the pair with the highest PI\_HAT — is it a parent-offspring pair or a sibling pair?
+2. Using the KING output, find all pairs with kinship > 0.177 (first-degree relatives). How many are there?
+3. In a GWAS study design, if you identify two first-degree relatives in your sample, which one would you remove and why?
 
 ---
 
@@ -505,31 +586,7 @@ LDlink is a web-based tool backed by the 1000 Genomes Project data. It offers:
 - **SNPchip** — check if a SNP is on common genotyping arrays
 - **RegulomeDB integration** — functional annotation of LD proxies
 
-**Try it:** Look up `rs1048488` and `rs3115850` in the **CEU** population and compare with the PLINK result you computed above.
-
-### Ensembl LD Calculator
-
-**[https://www.ensembl.org/Homo_sapiens/Tools/LD](https://www.ensembl.org/Homo_sapiens/Tools/LD)**
-
-Ensembl provides LD visualisation alongside genomic annotation (genes, regulatory elements, variants). Useful when you want to see LD in its genomic context.
-
-### HaploReg
-
-**[https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php](https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php)**
-
-HaploReg annotates LD-linked variants with:
-- eQTL data (gene expression)
-- Regulatory element overlaps (enhancers, promoters)
-- Motif disruptions
-- Conservation scores
-
-Useful after GWAS: find all SNPs in LD with your hit, and see which might be functionally relevant.
-
-### SNAP (SNP Annotation and Proxy Search)
-
-**[https://www.broadinstitute.org/snap/snap](https://www.broadinstitute.org/snap/snap)**
-
-SNAP finds proxy SNPs in LD with a query SNP, given a population and $r^2$ threshold. Useful for identifying tagging SNPs.
+**Try it:** Look up `rs994335` and `rs2379903` in the **JPT+CHB** population and compare with the PLINK result you computed above.
 
 ---
 
@@ -566,14 +623,3 @@ plink --bfile hapmap3_pruned_set --genome --min 0.125 --out ibd_results
 ```
 
 > The final analysis dataset (`hapmap3_final`) uses the full set of QC-passing SNPs, **not** the LD-pruned set — unless PCA or heritability estimation specifically requires it.
-
----
-
-## References
-
-- Anderson, C.A. et al. (2010). Data quality control in genetic case-control association studies. *Nature Protocols*, 5, 1564–1573.
-- Marees, A.T. et al. (2018). A tutorial on conducting genome-wide association studies: Quality control and statistical analysis. *International Journal of Methods in Psychiatric Research*, 27, e1608.
-- Manichaikul, A. et al. (2010). Robust relationship inference in genome-wide association studies. *Bioinformatics*, 26(22), 2867–2873. [KING paper]
-- Purcell, S. et al. (2007). PLINK: a tool set for whole-genome association and population-based linkage analyses. *American Journal of Human Genetics*, 81(3), 559–575.
-- GWAS Tutorial QC Reference: [https://cloufield.github.io/GWASTutorial/04_Data_QC/](https://cloufield.github.io/GWASTutorial/04_Data_QC/)
-- LDlink: [https://ldlink.nci.nih.gov/](https://ldlink.nci.nih.gov/)
