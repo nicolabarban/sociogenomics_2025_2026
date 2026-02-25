@@ -7,6 +7,9 @@
 
 
 ---
+## Students' presentations
+* [Topics and Instructions](presentations.md)
+
 
 ## Week 1
 
@@ -18,13 +21,12 @@
 * [Lab](labs/week2/lab2.md)
 * [Solutions](labs/week2/lab2_solutions.md)
 
-## Students' presentations
-* [Topics and Instructions](presentations.md)
-
 
 ## Week 3
 
 * [Lab 3](labs/week3/lab3.md)
+* [Solutions](labs/week3/lab3_solutions.md)
+
 
 
 <!--
