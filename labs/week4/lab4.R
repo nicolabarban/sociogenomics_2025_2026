@@ -117,18 +117,18 @@ ggplot(data, aes(x = PC1, y = PC3, colour = Superpopulation.name)) +
   xlab("PC1") + ylab("PC3") +
   labs(colour = "Superpopulation", title = "PC1 vs PC3")
 
-# --- 2.6 Within-European PCA -------------------------------------------------
+# --- 2.6 Within-African PCA --------------------------------------------------
 
-pc_cols_eur <- c("FID", "IID", paste0("PC", 1:10))
-pca_eur     <- read.table("pca_EUR.eigenvec", header = FALSE, col.names = pc_cols_eur)
-data_eur    <- merge(pca_eur, geo[, c("Sample.name", "Population.name")],
+pc_cols_afr <- c("FID", "IID", paste0("PC", 1:10))
+pca_afr     <- read.table("pca_AFR.eigenvec", header = FALSE, col.names = pc_cols_afr)
+data_afr    <- merge(pca_afr, geo[, c("Sample.name", "Population.name")],
                      by.x = "IID", by.y = "Sample.name")
 
-ggplot(data_eur, aes(x = PC1, y = PC2, colour = Population.name)) +
+ggplot(data_afr, aes(x = PC1, y = PC2, colour = Population.name)) +
   geom_point(alpha = 0.8, size = 2) +
   xlab("PC1") + ylab("PC2") +
-  labs(colour = "European population",
-       title  = "PCA within European populations")
+  labs(colour = "African population",
+       title  = "PCA within African populations")
 
 # =============================================================================
 # PART III — Detecting Population Outliers

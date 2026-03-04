@@ -105,9 +105,7 @@ zip lab4_results.zip \
     hapmap3_het.het \
     hapmap3_pca.eigenvec \
     hapmap3_pca.eigenval \
-    pca_EUR.eigenvec \
-    bmi_assoc.assoc.linear \
-    bmi_assoc_pca_corrected.assoc.linear \
+    pca_AFR.eigenvec \
     1kg_samples.txt
 ```
 
@@ -422,15 +420,15 @@ awk 'BEGIN{sum=0} {val[NR]=$1; sum+=$1}
      }' hapmap3_pca.eigenval
 ```
 
-Within-European PCA (for section 3.5):
+Within-African PCA (for section 3.5):
 
 ```bash
-awk -F'\t' 'NR>1 && $6 == "EUR" {print $1, $1}' 1kg_samples.txt > samples_EUR.txt
+awk -F'\t' 'NR>1 && $6 == "AFR" {print $1, $1}' 1kg_samples.txt > samples_AFR.txt
 
 plink --bfile hapmap3_pruned_set \
-      --keep samples_EUR.txt \
+      --keep samples_AFR.txt \
       --pca 10 \
-      --out pca_EUR
+      --out pca_AFR
 ```
 
 ### 3.3 Scree plot in Colab (R)
@@ -511,23 +509,23 @@ ggplot(data, aes(x = PC1, y = PC3, colour = `Superpopulation name`)) +
   labs(colour = "Superpopulation", title = "PC1 vs PC3")
 ```
 
-### 3.5 Within-population PCA (Europeans)
+### 3.5 Within-population PCA (Africans)
 
 ```r
-pc_cols_eur <- c("FID", "IID", paste0("PC", 1:10))
-pca_eur <- fread("pca_EUR.eigenvec", header = FALSE, col.names = pc_cols_eur)
+pc_cols_afr <- c("FID", "IID", paste0("PC", 1:10))
+pca_afr <- read.table("pca_AFR.eigenvec", header = FALSE, col.names = pc_cols_afr)
 
-data_eur <- merge(pca_eur, geo[, .(`IID`, `Population name`)], by = "IID")
+data_afr <- merge(pca_afr, geo[, c("Sample.name", "Population.name")],
+                  by.x = "IID", by.y = "Sample.name")
 
-ggplot(data_eur, aes(x = PC1, y = PC2, colour = `Population name`)) +
+ggplot(data_afr, aes(x = PC1, y = PC2, colour = Population.name)) +
   geom_point(alpha = 0.8, size = 2) +
-  theme_bw() +
   xlab("PC1") + ylab("PC2") +
-  labs(colour = "European population",
-       title = "PCA within European populations")
+  labs(colour = "African population",
+       title = "PCA within African populations")
 ```
 
-Within Europeans, PCs often separate Northern Europeans (Finnish, British) from Southern Europeans (Iberian, Tuscan).
+The three HapMap3 African groups — **YRI** (Yoruba, Nigeria), **LWK** (Luhya, Kenya), and **ASW** (African Americans, SW USA) — show distinct clustering. ASW individuals often appear intermediate between YRI/LWK and other continents due to admixture.
 
 ### 3.6 PCA as covariates in GWAS (Cloud Shell)
 
@@ -575,8 +573,7 @@ cat("Lambda (PC-corrected):", round(lam_corr, 3), "\n")
 
 1. Examine the scree plot. How many PCs are needed to capture the main axes of variation?
 2. In the PC1 vs PC2 plot, which superpopulations are most separated along PC1? Along PC2?
-3. Within Europeans, which populations are most separated? What historical events might explain this?
-4. How does $\lambda_{GC}$ change before and after adding 10 PCs as covariates?
+3. Within Africans, which populations are most separated? How does the ASW cluster position reflect their history of admixture?
 
 ---
 
