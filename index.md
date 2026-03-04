@@ -29,14 +29,12 @@
 
 
 
-<!--
 ## Week 4
 
 * [Lab 4](labs/week4/lab4.md)
 
 
-
-
+<!--
 ## Week 5
 
  * [Lab week 5](labs/week5/lab5.md)
