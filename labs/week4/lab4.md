@@ -6,7 +6,13 @@ We continue using the **HapMap Phase III** dataset (`hapmap3`) from the course r
 
 **Tools used in this lab:**
 - **[Google Cloud Shell](https://shell.cloud.google.com/)** — for all PLINK commands (bash)
-- **[Google Colab (R)](https://colab.to/r)** — for data exploration and visualisation (R)
+- **Google Colab (R)** — for data exploration and visualisation
+
+### Open the R notebook in Google Colab
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week4/lab4_colab.ipynb)
+
+> The notebook uses an **R runtime**. When it opens, Colab may prompt you to switch to an R kernel — click **Yes**. All R code (ggplot2, data.table, k-NN, Random Forest) is ready to run cell by cell.
 
 ---
 

@@ -32,6 +32,7 @@
 ## Week 4
 
 * [Lab 4](labs/week4/lab4.md)
+* [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week4/lab4_colab.ipynb)
 
 
 <!--
