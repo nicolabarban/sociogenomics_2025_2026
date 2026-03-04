@@ -12,7 +12,9 @@ We continue using the **HapMap Phase III** dataset (`hapmap3`) from the course r
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week4/lab4_colab.ipynb)
 
-> The notebook uses an **R runtime**. When it opens, Colab may prompt you to switch to an R kernel — click **Yes**. All R code (ggplot2, data.table, k-NN, Random Forest) is ready to run cell by cell.
+> The notebook uses an **R runtime**. When it opens, Colab may prompt you to switch to an R kernel — click **Yes**. Data files are downloaded automatically from the course repository.
+
+Alternatively, download the **[R script](lab4.R)** and run it locally in RStudio. It downloads the data automatically.
 
 ---
 
