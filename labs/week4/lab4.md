@@ -1,12 +1,12 @@
 # Lab 4. Genetic Tests and Principal Component Analysis
 
-In this lab you will learn how to explore genetic data in Python, run statistical tests, compute Principal Component Analysis (PCA) to detect population structure, and use PCA scores to predict ancestry. By the end you will be able to visualise genotype quality distributions, test Hardy-Weinberg equilibrium, run association tests, produce annotated PCA plots that reveal ancestry differences, and classify individuals into continental ancestry groups using machine learning.
+In this lab you will learn how to explore genetic data in R, run statistical tests, compute Principal Component Analysis (PCA) to detect population structure, and use PCA scores to predict ancestry. By the end you will be able to visualise genotype quality distributions, test Hardy-Weinberg equilibrium, run association tests, produce annotated PCA plots that reveal ancestry differences, and classify individuals into continental ancestry groups using machine learning.
 
 We continue using the **HapMap Phase III** dataset (`hapmap3`) from the course repository.
 
 **Tools used in this lab:**
 - **[Google Cloud Shell](https://shell.cloud.google.com/)** — for all PLINK commands (bash)
-- **[Google Colab](https://colab.research.google.com/)** — for data exploration and visualisation (Python)
+- **[Google Colab (R)](https://colab.to/r)** — for data exploration and visualisation (R)
 
 ---
 
@@ -58,7 +58,7 @@ bash ~/sociogenomics_2025_2026/scripts/setup_plink19.sh
 source ~/.bashrc
 ```
 
-Apply the standard QC filters from Lab 3 to get a clean dataset (skip this if `hapmap3_qc` already exists):
+Apply the standard QC filters from Lab 3 (skip this if `hapmap3_qc` already exists):
 
 ```bash
 plink --bfile hapmap3 \
@@ -72,11 +72,20 @@ plink --bfile hapmap3 \
 
 ---
 
-## How to transfer files from Cloud Shell to Google Colab
+## How to use R in Google Colab
 
-All PLINK output files are plain text. After running the PLINK commands below, you will download them to your computer and upload them to Colab.
+Google Colab supports R natively. To open an R notebook:
 
-**Step 1 — In Cloud Shell:** package all results into a zip file:
+1. Go to **[https://colab.to/r](https://colab.to/r)** — this opens a new Colab notebook with an **R runtime** already selected.
+2. Alternatively: open [colab.research.google.com](https://colab.research.google.com), create a new notebook, then go to **Runtime → Change runtime type → R**.
+
+All R code in this lab runs in Colab cells exactly as written. The standard packages (`ggplot2`, `data.table`, `class`, `randomForest`) are pre-installed.
+
+### Transferring files from Cloud Shell to Colab
+
+PLINK output files are plain text. After running the PLINK commands, download them from Cloud Shell and upload them to Colab.
+
+**Step 1 — In Cloud Shell:** package all output files into a zip:
 
 ```bash
 cd ~/Sociogenomics/Data
@@ -94,31 +103,24 @@ zip lab4_results.zip \
     1kg_samples.txt
 ```
 
-**Step 2 — Download from Cloud Shell:** click the three-dot menu (⋮) at the top right of the Cloud Shell panel → **Download** → type `~/Sociogenomics/Data/lab4_results.zip` → click Download.
+**Step 2 — Download from Cloud Shell:** click the three-dot menu (⋮) at the top right → **Download** → type `~/Sociogenomics/Data/lab4_results.zip` → Download.
 
-**Step 3 — In Google Colab:** upload the zip and extract it:
+**Step 3 — Upload to Colab:** in your Colab R notebook, click the **folder icon** in the left sidebar to open the Files panel. Click the **upload icon** (↑) and select `lab4_results.zip`. Then unzip it with this R cell:
 
-```python
-# Run this cell first in every Colab session
-from google.colab import files
-import zipfile, os
-
-uploaded = files.upload()          # select lab4_results.zip from your computer
-with zipfile.ZipFile("lab4_results.zip", "r") as z:
-    z.extractall(".")
-
-print("Files available:", os.listdir("."))
+```r
+unzip("lab4_results.zip")
+list.files()   # confirm files are present
 ```
 
-All subsequent Python code in this lab assumes files are in the current Colab working directory.
+All subsequent R code assumes files are in the Colab working directory (`/content/`).
 
 ---
 
-## Part I. Exploring Genetic Data in Python (Colab)
+## Part I. Exploring Genetic Data in R (Colab)
 
 ### 1.0 Generate summary statistics in Cloud Shell
 
-Run these PLINK commands in **Cloud Shell** first, then transfer the output files to Colab.
+Run these PLINK commands in **Cloud Shell** first:
 
 ```bash
 cd ~/Sociogenomics/Data
@@ -136,128 +138,110 @@ plink --bfile hapmap3_qc --hardy --out hapmap3_summary
 plink --bfile hapmap3_qc --het --out hapmap3_het
 ```
 
-### 1.0a Load and inspect summary statistics in Colab
+Then transfer the files to Colab as described above.
 
-Open [Google Colab](https://colab.research.google.com/), create a new notebook, and run the following cells.
+### 1.0a Load and inspect summary statistics
 
-**Install and import libraries** (first cell):
+Open your **Colab R notebook** and run the following cells.
 
-```python
-# All libraries below come pre-installed in Colab
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import seaborn as sns
+**Install / load libraries** (first cell):
 
-sns.set_theme(style="whitegrid", font_scale=1.2)
+```r
+library(data.table)
+library(ggplot2)
 ```
 
 **SNP and individual missingness:**
 
-```python
+```r
 # --- SNP missingness ---
-lmiss = pd.read_csv("hapmap3_summary.lmiss", sep=r"\s+")
-print(f"SNPs in dataset: {len(lmiss)}")
-print(f"SNP missingness range: {lmiss['F_MISS'].min():.4f} – {lmiss['F_MISS'].max():.4f}")
+lmiss <- fread("hapmap3_summary.lmiss")
+cat("SNPs in dataset:", nrow(lmiss), "\n")
+cat("SNP missingness range:", range(lmiss$F_MISS), "\n")
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-
-axes[0].hist(lmiss["F_MISS"], bins=50, color="steelblue", edgecolor="white")
-axes[0].set_xlabel("Per-SNP missing rate")
-axes[0].set_ylabel("Number of SNPs")
-axes[0].set_title("SNP missingness")
+p1 <- ggplot(lmiss, aes(x = F_MISS)) +
+  geom_histogram(bins = 50, fill = "steelblue", colour = "white") +
+  theme_bw() +
+  xlab("Per-SNP missing rate") + ylab("Number of SNPs") +
+  ggtitle("SNP missingness")
 
 # --- Individual missingness ---
-imiss = pd.read_csv("hapmap3_summary.imiss", sep=r"\s+")
-print(f"Individuals in dataset: {len(imiss)}")
-print(f"Individual missingness range: {imiss['F_MISS'].min():.4f} – {imiss['F_MISS'].max():.4f}")
+imiss <- fread("hapmap3_summary.imiss")
+cat("Individuals in dataset:", nrow(imiss), "\n")
+cat("Individual missingness range:", range(imiss$F_MISS), "\n")
 
-axes[1].hist(imiss["F_MISS"], bins=40, color="coral", edgecolor="white")
-axes[1].set_xlabel("Per-individual missing rate")
-axes[1].set_ylabel("Number of individuals")
-axes[1].set_title("Individual missingness")
+p2 <- ggplot(imiss, aes(x = F_MISS)) +
+  geom_histogram(bins = 40, fill = "coral", colour = "white") +
+  theme_bw() +
+  xlab("Per-individual missing rate") + ylab("Number of individuals") +
+  ggtitle("Individual missingness")
 
-plt.tight_layout()
-plt.savefig("hist_missingness.png", dpi=150)
-plt.show()
+library(patchwork)
+p1 + p2
 ```
 
 ### 1.0b Minor allele frequency distribution
 
-```python
-frq = pd.read_csv("hapmap3_summary.frq", sep=r"\s+")
-print(f"Mean MAF:   {frq['MAF'].mean():.4f}")
-print(f"Median MAF: {frq['MAF'].median():.4f}")
+```r
+frq <- fread("hapmap3_summary.frq")
+cat("Mean MAF:  ", round(mean(frq$MAF), 4), "\n")
+cat("Median MAF:", round(median(frq$MAF), 4), "\n")
 
-plt.figure(figsize=(8, 5))
-plt.hist(frq["MAF"], bins=50, color="darkgreen", edgecolor="white")
-plt.axvline(0.05, color="red", linestyle="--", linewidth=1.5, label="MAF = 0.05")
-plt.xlabel("Minor allele frequency")
-plt.ylabel("Number of SNPs")
-plt.title("MAF distribution across all SNPs")
-plt.legend()
-plt.tight_layout()
-plt.savefig("hist_maf.png", dpi=150)
-plt.show()
-
-# Frequency bins
-bins = [0, 0.01, 0.05, 0.10, 0.20, 0.51]
-labels = ["<0.01 (rare)", "0.01–0.05", "0.05–0.10", "0.10–0.20", "≥0.20 (common)"]
-frq["bin"] = pd.cut(frq["MAF"], bins=bins, labels=labels, right=False)
-print("\nSNPs per MAF bin:")
-print(frq["bin"].value_counts().sort_index())
+ggplot(frq, aes(x = MAF)) +
+  geom_histogram(bins = 50, fill = "darkgreen", colour = "white") +
+  geom_vline(xintercept = 0.05, colour = "red", linetype = "dashed", linewidth = 0.8) +
+  annotate("text", x = 0.07, y = Inf, vjust = 2,
+           label = "MAF = 0.05", colour = "red", size = 4) +
+  theme_bw() +
+  xlab("Minor allele frequency") + ylab("Number of SNPs") +
+  ggtitle("MAF distribution across all SNPs")
 ```
+
+The red dashed line shows the common MAF = 0.05 filter. SNPs to the left of it are rare variants.
 
 ### 1.0c Hardy-Weinberg equilibrium distribution
 
-```python
-hwe = pd.read_csv("hapmap3_summary.hwe", sep=r"\s+")
-hwe_all = hwe[hwe["TEST"] == "ALL"].copy()
+```r
+hwe <- fread("hapmap3_summary.hwe")
+hwe_all <- hwe[TEST == "ALL"]
+hwe_all[, log10p := -log10(P)]
 
-hwe_all["log10p"] = -np.log10(hwe_all["P"])
+ggplot(hwe_all, aes(x = log10p)) +
+  geom_histogram(bins = 60, fill = "purple", colour = "white") +
+  geom_vline(xintercept = 6, colour = "red", linetype = "dashed", linewidth = 0.8) +
+  annotate("text", x = 6.3, y = Inf, vjust = 2,
+           label = "p = 1e-6", colour = "red", size = 4) +
+  theme_bw() +
+  xlab(expression(-log[10](p))) + ylab("Number of SNPs") +
+  ggtitle("Distribution of HWE test statistics")
 
-plt.figure(figsize=(8, 5))
-plt.hist(hwe_all["log10p"], bins=60, color="purple", edgecolor="white")
-plt.axvline(6, color="red", linestyle="--", linewidth=1.5, label="p = 1e-6 threshold")
-plt.xlabel(r"$-\log_{10}(p)$")
-plt.ylabel("Number of SNPs")
-plt.title("Distribution of HWE test statistics")
-plt.legend()
-plt.tight_layout()
-plt.savefig("hist_hwe.png", dpi=150)
-plt.show()
-
-n_fail = (hwe_all["P"] < 1e-6).sum()
-print(f"SNPs failing HWE (p < 1e-6): {n_fail}")
-print(f"Top 10 most deviant SNPs:")
-print(hwe_all.nsmallest(10, "P")[["SNP", "CHR", "O(HET)", "E(HET)", "P"]])
+cat("SNPs failing HWE (p < 1e-6):", sum(hwe_all$P < 1e-6, na.rm = TRUE), "\n")
+cat("\nTop 10 most deviant SNPs:\n")
+print(hwe_all[order(P)][1:10, .(SNP, CHR, `O(HET)`, `E(HET)`, P)])
 ```
 
 ### 1.0d Per-individual inbreeding coefficient
 
-Individuals with extreme inbreeding coefficients (F) deviate from the population average, which may indicate contamination (F very negative) or inbreeding (F very positive).
+Individuals with extreme inbreeding coefficients (F) may indicate contamination (very negative F) or inbreeding (very positive F).
 
-```python
-het = pd.read_csv("hapmap3_het.het", sep=r"\s+")
-# F = inbreeding coefficient (already in the file)
+```r
+het <- fread("hapmap3_het.het")
 
-plt.figure(figsize=(8, 5))
-plt.hist(het["F"], bins=50, color="orange", edgecolor="white")
-plt.axvline(-0.15, color="red", linestyle="--", linewidth=1.5, label="±0.15 threshold")
-plt.axvline( 0.15, color="red", linestyle="--", linewidth=1.5)
-plt.xlabel("Inbreeding coefficient F")
-plt.ylabel("Number of individuals")
-plt.title("Per-individual inbreeding coefficient")
-plt.legend()
-plt.tight_layout()
-plt.savefig("hist_inbreeding.png", dpi=150)
-plt.show()
+ggplot(het, aes(x = F)) +
+  geom_histogram(bins = 50, fill = "orange", colour = "white") +
+  geom_vline(xintercept = c(-0.15, 0.15), colour = "red",
+             linetype = "dashed", linewidth = 0.8) +
+  annotate("text", x = -0.17, y = Inf, vjust = 2, hjust = 1,
+           label = "-0.15", colour = "red", size = 4) +
+  annotate("text", x =  0.17, y = Inf, vjust = 2, hjust = 0,
+           label = "+0.15", colour = "red", size = 4) +
+  theme_bw() +
+  xlab("Inbreeding coefficient F") + ylab("Number of individuals") +
+  ggtitle("Per-individual inbreeding coefficient")
 
-outliers = het[(het["F"] < -0.15) | (het["F"] > 0.15)]
-print(f"Heterozygosity outliers: {len(outliers)}")
-if len(outliers) > 0:
-    print(outliers[["FID", "IID", "F"]])
+outliers <- het[F < -0.15 | F > 0.15]
+cat("Heterozygosity outliers:", nrow(outliers), "\n")
+if (nrow(outliers) > 0) print(outliers[, .(FID, IID, F)])
 ```
 
 ---
@@ -272,39 +256,27 @@ All commands in this part run in **Cloud Shell**.
 
 $$P(AA) = p^2, \quad P(AB) = 2pq, \quad P(BB) = q^2$$
 
-**Why test for HWE?** Deviations from HWE in a control sample usually indicate genotyping errors — differential allelic dropout, probe failure, or sample contamination — rather than a true biological signal. SNPs with $p < 10^{-6}$ in controls are typically removed in QC.
+**Why test for HWE?** Deviations from HWE usually indicate genotyping errors — differential allelic dropout, probe failure, or sample contamination. SNPs with $p < 10^{-6}$ in controls are typically removed in QC.
 
 HWE is tested using a chi-squared test with 1 degree of freedom:
 
 $$\chi^2 = \frac{(O_{AA} - E_{AA})^2}{E_{AA}} + \frac{(O_{AB} - E_{AB})^2}{E_{AB}} + \frac{(O_{BB} - E_{BB})^2}{E_{BB}}$$
 
-Compute HWE statistics for all SNPs:
-
 ```bash
-plink --bfile hapmap3_qc \
-      --hardy \
-      --out hwe_results
-```
-
-Inspect the output:
-
-```bash
+plink --bfile hapmap3_qc --hardy --out hwe_results
 head hwe_results.hwe
 ```
 
-The columns are: CHR, SNP, TEST (ALL / AFF / UNAFF), A1, A2, GENO (observed counts: homozygous A1 / heterozygous / homozygous A2), O(HET), E(HET), P.
+The columns are: CHR, SNP, TEST (ALL / AFF / UNAFF), A1, A2, GENO, O(HET), E(HET), P.
 
-Count SNPs at different significance thresholds:
+Count SNPs at different thresholds:
 
 ```bash
-# How many SNPs deviate at p < 0.05?
-awk 'NR>1 && $9 < 0.05' hwe_results.hwe | wc -l
-
-# How many at p < 1e-6 (typical QC threshold)?
-awk 'NR>1 && $9 < 1e-6' hwe_results.hwe | wc -l
+awk 'NR>1 && $9 < 0.05' hwe_results.hwe | wc -l    # p < 0.05
+awk 'NR>1 && $9 < 1e-6' hwe_results.hwe | wc -l    # p < 1e-6 (QC threshold)
 ```
 
-Find the SNPs with the strongest HWE deviation:
+Find the most deviant SNPs:
 
 ```bash
 awk 'NR>1 {print $2, $9}' hwe_results.hwe | sort -k2 -n | head -10
@@ -312,16 +284,12 @@ awk 'NR>1 {print $2, $9}' hwe_results.hwe | sort -k2 -n | head -10
 
 ### 2.2 Allele frequency statistics
 
-Compute allele frequencies:
-
 ```bash
-plink --bfile hapmap3_qc \
-      --freq \
-      --out allele_freq
+plink --bfile hapmap3_qc --freq --out allele_freq
 head allele_freq.frq
 ```
 
-Summarise the frequency distribution:
+Summarise by frequency bin:
 
 ```bash
 awk 'NR>1 {
@@ -339,81 +307,63 @@ awk 'NR>1 {
 }' allele_freq.frq
 ```
 
-### 2.3 Chi-squared association test
+### 2.3 Association test
 
-The simplest genetic association test asks: is a SNP's allele frequency different between cases and controls?
-
-For a **quantitative trait** (like BMI), a linear regression is used:
+For a **quantitative trait** (like BMI), PLINK fits a linear regression:
 
 $$y = \beta_0 + \beta_1 x + \epsilon$$
 
-where $y$ is the phenotype, $x$ is the SNP genotype (coded 0, 1, 2 copies of the effect allele), and $\beta_1$ is the additive effect estimate.
-
-Run a basic association test with BMI as a quantitative phenotype:
+where $y$ is the phenotype, $x$ is the genotype (0, 1, 2 copies of the effect allele), and $\beta_1$ is the additive effect estimate.
 
 ```bash
 plink --bfile hapmap3_qc \
       --pheno BMI_pheno.txt \
-      --assoc \
-      --linear \
+      --assoc --linear \
       --out bmi_assoc
-```
 
-Inspect the output:
-
-```bash
 head bmi_assoc.assoc.linear
 ```
 
-The key columns are: CHR, SNP, BP (position), A1 (effect allele), TEST, NMISS, BETA (effect size), STAT (test statistic), P (p-value).
-
-Find the most significant associations:
+The key columns are: CHR, SNP, BP, A1, TEST, NMISS, BETA, STAT, P.
 
 ```bash
+# Top associations
 awk 'NR>1' bmi_assoc.assoc.linear | sort -k9 -n | head -20
-```
 
-Count genome-wide significant hits ($p < 5 \times 10^{-8}$, the standard GWAS threshold):
-
-```bash
+# Genome-wide significant hits (p < 5e-8)
 awk 'NR>1 && $9 < 5e-8' bmi_assoc.assoc.linear | wc -l
 ```
-
-The GWAS significance threshold of $p < 5 \times 10^{-8}$ is a Bonferroni correction for approximately 1 million independent tests across the genome.
 
 ### 2.4 Test a single SNP under different genetic models
 
 ```bash
-# Identify the top SNP
 TOP_SNP=$(awk 'NR>1' bmi_assoc.assoc.linear | sort -k9 -n | head -1 | awk '{print $2}')
 echo "Top SNP: $TOP_SNP"
 
 # Additive model
 plink --bfile hapmap3_qc --pheno BMI_pheno.txt \
-      --snp $TOP_SNP --assoc --linear \
-      --out top_snp_additive
-cat top_snp_additive.assoc.linear
+      --snp $TOP_SNP --assoc --linear --out top_snp_additive
 
-# Dominant model (one copy of the effect allele is sufficient)
+# Dominant model (one copy sufficient)
 plink --bfile hapmap3_qc --pheno BMI_pheno.txt \
-      --snp $TOP_SNP --assoc --linear dominant \
-      --out top_snp_dominant
-cat top_snp_dominant.assoc.linear
+      --snp $TOP_SNP --assoc --linear dominant --out top_snp_dominant
 
 # Recessive model (two copies required)
 plink --bfile hapmap3_qc --pheno BMI_pheno.txt \
-      --snp $TOP_SNP --assoc --linear recessive \
-      --out top_snp_recessive
+      --snp $TOP_SNP --assoc --linear recessive --out top_snp_recessive
+
+cat top_snp_additive.assoc.linear
+cat top_snp_dominant.assoc.linear
 cat top_snp_recessive.assoc.linear
 ```
 
-**Question:** Does the p-value change across the three models? Which model fits best?
+**Question:** Does the p-value change across models? Which model fits best?
 
 ### Exercise 1
 
-1. How many SNPs in `hapmap3_qc` deviate significantly from HWE at $p < 10^{-6}$? What could cause this?
-2. Look at the 10 SNPs with the strongest HWE deviation. Do their observed and expected heterozygosities suggest excess or deficit heterozygosity?
-3. Run the BMI association and report the top 5 SNPs by p-value. What are their chromosomal positions?
+1. How many SNPs deviate significantly from HWE at $p < 10^{-6}$? What could cause this?
+2. Do the most deviant SNPs show excess or deficit heterozygosity?
+3. Report the top 5 BMI-associated SNPs. What are their chromosomal positions?
 
 ---
 
@@ -422,49 +372,39 @@ cat top_snp_recessive.assoc.linear
 ### 3.1 Why PCA in genetics?
 
 PCA is used in genomics to:
-1. **Detect population stratification** — systematic ancestry differences between cases and controls that can confound association tests
+1. **Detect population stratification** — systematic ancestry differences between cases and controls that confound association tests
 2. **Visualise ancestry** — reveal continental and sub-continental genetic clusters
 3. **Create covariates** — PC scores are added to GWAS regression models to control for stratification
 
-PCA works by decomposing the genotype matrix $\mathbf{G}$ (individuals × SNPs) into orthogonal components that capture the directions of maximum variance. Individuals with similar ancestry cluster together in PC space because they share similar allele frequencies genome-wide.
+PCA decomposes the genotype matrix $\mathbf{G}$ (individuals × SNPs) into orthogonal components that capture the directions of maximum variance. Individuals with similar ancestry cluster together in PC space because they share similar allele frequencies genome-wide.
 
 **Genomic PCA requires LD-pruned SNPs.** Regions in high LD would over-represent certain loci, distorting the PC directions.
 
 ### 3.2 Compute PCA in Cloud Shell
 
 ```bash
-# LD pruning: remove one SNP from each pair with r² > 0.2
+# LD pruning
 plink --bfile hapmap3_qc \
       --indep-pairwise 50 5 0.2 \
       --out hapmap3_pruned
 
-# Extract the pruned SNP set
 plink --bfile hapmap3_qc \
       --extract hapmap3_pruned.prune.in \
       --make-bed \
       --out hapmap3_pruned_set
 
-# How many SNPs remain after pruning?
-wc -l hapmap3_pruned.prune.in
+wc -l hapmap3_pruned.prune.in   # how many SNPs remain?
 
 # Compute PCA (top 20 components)
 plink --bfile hapmap3_pruned_set \
       --pca 20 \
       --out hapmap3_pca
-```
 
-PLINK produces two output files:
-- `hapmap3_pca.eigenvec` — PC scores for each individual
-- `hapmap3_pca.eigenval` — eigenvalues (variance explained by each PC)
-
-Inspect the output:
-
-```bash
 head hapmap3_pca.eigenvec
 head hapmap3_pca.eigenval
 ```
 
-Compute the proportion of variance explained by each PC:
+Proportion of variance explained by each PC:
 
 ```bash
 awk 'BEGIN{sum=0} {val[NR]=$1; sum+=$1}
@@ -474,7 +414,7 @@ awk 'BEGIN{sum=0} {val[NR]=$1; sum+=$1}
      }' hapmap3_pca.eigenval
 ```
 
-Also run PCA within Europeans (for section 3.6):
+Within-European PCA (for section 3.5):
 
 ```bash
 awk -F'\t' 'NR>1 && $6 == "EUR" {print $1, $1}' 1kg_samples.txt > samples_EUR.txt
@@ -485,257 +425,195 @@ plink --bfile hapmap3_pruned_set \
       --out pca_EUR
 ```
 
-### 3.3 Visualise PCA in Colab
+### 3.3 Scree plot in Colab (R)
 
-Switch to **Google Colab**. Make sure you have uploaded `lab4_results.zip` (see the file transfer section at the top).
+Switch to your **Colab R notebook**. Upload `lab4_results.zip` if not already done.
 
-**Scree plot — variance explained:**
+```r
+library(data.table)
+library(ggplot2)
 
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+eigenval <- fread("hapmap3_pca.eigenval", header = FALSE, col.names = "eigenvalue")
+eigenval[, PC  := seq_len(.N)]
+eigenval[, pct := eigenvalue / sum(eigenvalue) * 100]
 
-sns.set_theme(style="whitegrid", font_scale=1.2)
+ggplot(eigenval, aes(x = PC, y = pct)) +
+  geom_col(fill = "steelblue", colour = "white") +
+  geom_line(aes(group = 1)) +
+  geom_point(size = 2) +
+  scale_x_continuous(breaks = 1:20) +
+  theme_bw() +
+  xlab("Principal Component") + ylab("Variance explained (%)") +
+  ggtitle("Scree plot")
 
-# Read eigenvalues
-eigenval = pd.read_csv("hapmap3_pca.eigenval", header=None, names=["eigenvalue"])
-eigenval["PC"] = range(1, len(eigenval) + 1)
-eigenval["pct"] = eigenval["eigenvalue"] / eigenval["eigenvalue"].sum() * 100
-
-plt.figure(figsize=(9, 5))
-plt.bar(eigenval["PC"], eigenval["pct"], color="steelblue", edgecolor="white")
-plt.plot(eigenval["PC"], eigenval["pct"], "o-", color="navy", markersize=5)
-plt.xlabel("Principal Component")
-plt.ylabel("Variance explained (%)")
-plt.title("Scree plot")
-plt.xticks(range(1, 21))
-plt.tight_layout()
-plt.savefig("pca_scree.png", dpi=150)
-plt.show()
-
-print(eigenval[["PC", "pct"]].to_string(index=False))
+print(eigenval[, .(PC, pct = round(pct, 2))])
 ```
+
+### 3.4 PCA plots coloured by ancestry in Colab (R)
 
 **Load PCA scores and population labels:**
 
-```python
-# Read PC scores
-pc_cols = ["FID", "IID"] + [f"PC{i}" for i in range(1, 21)]
-pca = pd.read_csv("hapmap3_pca.eigenvec", sep=r"\s+", header=None, names=pc_cols)
+```r
+pc_cols <- c("FID", "IID", paste0("PC", 1:20))
+pca <- fread("hapmap3_pca.eigenvec", header = FALSE, col.names = pc_cols)
 
-# Read population metadata
-geo = pd.read_csv("1kg_samples.txt", sep="\t")
-geo = geo.rename(columns={"Sample name": "IID"})
+geo <- fread("1kg_samples.txt", sep = "\t", header = TRUE)
+setnames(geo, "Sample name", "IID")
 
-# Merge
-data = pca.merge(geo[["IID", "Population code", "Population name",
-                        "Superpopulation code", "Superpopulation name"]],
-                 on="IID", how="inner")
+data <- merge(pca, geo[, .(`IID`, `Population code`, `Population name`,
+                            `Superpopulation code`, `Superpopulation name`)],
+              by = "IID")
 
-print(f"Individuals with labels: {len(data)}")
-print(data["Superpopulation name"].value_counts())
+cat("Individuals with labels:", nrow(data), "\n")
+print(table(data$`Superpopulation name`))
 ```
 
 **PC1 vs PC2 coloured by superpopulation:**
 
-```python
-fig, ax = plt.subplots(figsize=(9, 6))
-
-for superpop, grp in data.groupby("Superpopulation name"):
-    ax.scatter(grp["PC1"], grp["PC2"], label=superpop,
-               alpha=0.7, s=15, linewidths=0)
-
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC2")
-ax.set_title("PCA — continental ancestry")
-ax.legend(title="Superpopulation", bbox_to_anchor=(1.02, 1), loc="upper left")
-plt.tight_layout()
-plt.savefig("pca_superpop.png", dpi=150, bbox_inches="tight")
-plt.show()
+```r
+ggplot(data, aes(x = PC1, y = PC2, colour = `Superpopulation name`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  theme_bw() +
+  xlab("PC1") + ylab("PC2") +
+  labs(colour = "Superpopulation",
+       title = "PCA coloured by continental ancestry")
 ```
 
-You should see clearly separated clusters for: **AFR** (African), **EUR** (European), **EAS** (East Asian), **SAS** (South Asian), **AMR** (Admixed American).
+You should see clearly separated clusters: **AFR** (African), **EUR** (European), **EAS** (East Asian), **SAS** (South Asian), **AMR** (Admixed American).
 
 **PC1 vs PC2 coloured by sub-population:**
 
-```python
-fig, ax = plt.subplots(figsize=(11, 7))
-
-populations = data["Population name"].unique()
-palette = sns.color_palette("tab20", len(populations))
-
-for i, pop in enumerate(sorted(populations)):
-    grp = data[data["Population name"] == pop]
-    ax.scatter(grp["PC1"], grp["PC2"], label=pop,
-               color=palette[i], alpha=0.7, s=15, linewidths=0)
-
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC2")
-ax.set_title("PCA — sub-population")
-ax.legend(title="Population", bbox_to_anchor=(1.02, 1), loc="upper left",
-          fontsize=7, ncol=2)
-plt.tight_layout()
-plt.savefig("pca_subpop.png", dpi=150, bbox_inches="tight")
-plt.show()
+```r
+ggplot(data, aes(x = PC1, y = PC2, colour = `Population name`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  theme_bw() +
+  xlab("PC1") + ylab("PC2") +
+  labs(colour = "Population",
+       title = "PCA coloured by sub-population") +
+  theme(legend.text = element_text(size = 7))
 ```
 
 **PC1 vs PC3:**
 
-```python
-fig, ax = plt.subplots(figsize=(9, 6))
-
-for superpop, grp in data.groupby("Superpopulation name"):
-    ax.scatter(grp["PC1"], grp["PC3"], label=superpop,
-               alpha=0.7, s=15, linewidths=0)
-
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC3")
-ax.set_title("PC1 vs PC3")
-ax.legend(title="Superpopulation", bbox_to_anchor=(1.02, 1), loc="upper left")
-plt.tight_layout()
-plt.savefig("pca_pc1_pc3.png", dpi=150, bbox_inches="tight")
-plt.show()
+```r
+ggplot(data, aes(x = PC1, y = PC3, colour = `Superpopulation name`)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  theme_bw() +
+  xlab("PC1") + ylab("PC3") +
+  labs(colour = "Superpopulation", title = "PC1 vs PC3")
 ```
 
-### 3.4 Within-population PCA (Europeans)
+### 3.5 Within-population PCA (Europeans)
 
-```python
-pc_cols_eur = ["FID", "IID"] + [f"PC{i}" for i in range(1, 11)]
-pca_eur = pd.read_csv("pca_EUR.eigenvec", sep=r"\s+", header=None, names=pc_cols_eur)
+```r
+pc_cols_eur <- c("FID", "IID", paste0("PC", 1:10))
+pca_eur <- fread("pca_EUR.eigenvec", header = FALSE, col.names = pc_cols_eur)
 
-data_eur = pca_eur.merge(geo[["IID", "Population name"]], on="IID", how="inner")
+data_eur <- merge(pca_eur, geo[, .(`IID`, `Population name`)], by = "IID")
 
-fig, ax = plt.subplots(figsize=(9, 6))
-for pop, grp in data_eur.groupby("Population name"):
-    ax.scatter(grp["PC1"], grp["PC2"], label=pop, alpha=0.8, s=25, linewidths=0)
-
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC2")
-ax.set_title("PCA within European populations")
-ax.legend(title="Population", bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=9)
-plt.tight_layout()
-plt.savefig("pca_EUR_subpop.png", dpi=150, bbox_inches="tight")
-plt.show()
+ggplot(data_eur, aes(x = PC1, y = PC2, colour = `Population name`)) +
+  geom_point(alpha = 0.8, size = 2) +
+  theme_bw() +
+  xlab("PC1") + ylab("PC2") +
+  labs(colour = "European population",
+       title = "PCA within European populations")
 ```
 
-Within European populations, PCs often separate Northern Europeans (Finnish, British) from Southern Europeans (Iberian, Tuscan).
+Within Europeans, PCs often separate Northern Europeans (Finnish, British) from Southern Europeans (Iberian, Tuscan).
 
-### 3.5 PCA as covariates in GWAS (Cloud Shell)
-
-Population stratification can cause spurious associations. The standard solution is to include PC scores as covariates.
+### 3.6 PCA as covariates in GWAS (Cloud Shell)
 
 ```bash
 plink --bfile hapmap3_qc \
       --pheno BMI_pheno.txt \
-      --assoc \
-      --linear \
+      --assoc --linear \
       --covar hapmap3_pca.eigenvec \
       --covar-number 1-10 \
       --out bmi_assoc_pca_corrected
-```
 
-Compare hits before and after correction:
-
-```bash
-# Before
+# Compare hits before and after
 awk 'NR>1 && $9 < 5e-8' bmi_assoc.assoc.linear | wc -l
-
-# After
 awk 'NR>1 && $9 < 5e-8' bmi_assoc_pca_corrected.assoc.linear | wc -l
 ```
 
-### 3.6 Genomic inflation factor λ_GC in Colab
+### 3.7 Genomic inflation factor λ_GC in Colab (R)
 
 The genomic inflation factor $\lambda_{GC}$ measures residual stratification:
 
 $$\lambda_{GC} = \frac{\text{median}(\chi^2_{\text{observed}})}{0.4549}$$
 
-A value of $\lambda_{GC} \approx 1.00$ indicates no inflation.
+A value close to 1.0 indicates no inflation.
 
-```python
-from scipy import stats
-
-def compute_lambda(pvals):
-    """Compute genomic inflation factor from a series of p-values."""
-    pvals = pvals.dropna()
-    chisq = stats.chi2.ppf(1 - pvals, df=1)
-    return np.median(chisq) / 0.4549
+```r
+compute_lambda <- function(pvals) {
+  pvals <- pvals[!is.na(pvals)]
+  chisq <- qchisq(pvals, df = 1, lower.tail = FALSE)
+  median(chisq) / 0.4549
+}
 
 # Uncorrected
-res_raw = pd.read_csv("bmi_assoc.assoc.linear", sep=r"\s+")
-lam_raw = compute_lambda(res_raw["P"])
-print(f"Lambda (uncorrected):   {lam_raw:.3f}")
+res_raw <- fread("bmi_assoc.assoc.linear")
+lam_raw <- compute_lambda(res_raw$P)
+cat("Lambda (uncorrected): ", round(lam_raw, 3), "\n")
 
 # PC-corrected (keep only the ADD test rows)
-res_corr = pd.read_csv("bmi_assoc_pca_corrected.assoc.linear", sep=r"\s+")
-res_corr = res_corr[res_corr["TEST"] == "ADD"]
-lam_corr = compute_lambda(res_corr["P"])
-print(f"Lambda (PC-corrected):  {lam_corr:.3f}")
+res_corr <- fread("bmi_assoc_pca_corrected.assoc.linear")
+res_corr <- res_corr[TEST == "ADD"]
+lam_corr <- compute_lambda(res_corr$P)
+cat("Lambda (PC-corrected):", round(lam_corr, 3), "\n")
 ```
 
 ### Exercise 2
 
-1. Examine the scree plot. How many PCs are needed to capture the main axes of genetic variation?
-2. In the PC1 vs PC2 plot, which two superpopulations are most separated along PC1? Along PC2?
-3. Within Europeans, which populations are most separated in PC space? What historical events might explain this?
+1. Examine the scree plot. How many PCs are needed to capture the main axes of variation?
+2. In the PC1 vs PC2 plot, which superpopulations are most separated along PC1? Along PC2?
+3. Within Europeans, which populations are most separated? What historical events might explain this?
 4. How does $\lambda_{GC}$ change before and after adding 10 PCs as covariates?
 
 ---
 
 ## Part IV. Detecting and Removing Population Outliers
 
-In a homogeneous cohort study, individuals who cluster far from the main group in PCA space likely have different ancestry. We identify and remove them.
+In a homogeneous cohort study, individuals who cluster far from the main group in PCA space likely have different ancestry and should be removed before association analysis.
 
-### 4.1 Identify EUR-like individuals in Colab
+### 4.1 Identify EUR-like individuals in Colab (R)
 
-```python
+```r
 # Compute the EUR centroid and standard deviations
-eur = data[data["Superpopulation code"] == "EUR"]
-eur_mean = eur[["PC1", "PC2"]].mean()
-eur_std  = eur[["PC1", "PC2"]].std()
+eur_mean_pc1 <- mean(data[`Superpopulation code` == "EUR", PC1])
+eur_mean_pc2 <- mean(data[`Superpopulation code` == "EUR", PC2])
+eur_sd_pc1   <- sd(data[`Superpopulation code` == "EUR", PC1])
+eur_sd_pc2   <- sd(data[`Superpopulation code` == "EUR", PC2])
 
-print(f"EUR centroid: PC1 = {eur_mean['PC1']:.4f}, PC2 = {eur_mean['PC2']:.4f}")
+cat("EUR centroid: PC1 =", round(eur_mean_pc1, 4),
+    ", PC2 =", round(eur_mean_pc2, 4), "\n")
 
-# Flag individuals within 3 SD of the EUR centroid on PC1 and PC2
-data["eur_like"] = (
-    (np.abs(data["PC1"] - eur_mean["PC1"]) < 3 * eur_std["PC1"]) &
-    (np.abs(data["PC2"] - eur_mean["PC2"]) < 3 * eur_std["PC2"])
-)
+# Flag individuals within 3 SD of the EUR centroid
+data[, eur_like := abs(PC1 - eur_mean_pc1) < 3 * eur_sd_pc1 &
+                   abs(PC2 - eur_mean_pc2) < 3 * eur_sd_pc2]
 
-print(f"Individuals within 3 SD of EUR centroid: {data['eur_like'].sum()}")
+cat("Individuals within 3 SD of EUR centroid:", sum(data$eur_like), "\n")
 
-# Visualise
-fig, ax = plt.subplots(figsize=(9, 6))
-colours = {True: "steelblue", False: "lightgrey"}
-shapes  = {True: "o", False: "x"}
-labels  = {True: "EUR-like (kept)", False: "Excluded"}
+# Visualise the selection
+ggplot(data, aes(x = PC1, y = PC2,
+                 colour = `Superpopulation code`,
+                 shape  = eur_like)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  scale_shape_manual(values = c(4, 16),
+                     labels = c("Excluded", "EUR-like (kept)")) +
+  theme_bw() +
+  labs(colour = "Superpopulation", shape = "Selection",
+       title = "EUR-like individuals (within 3 SD of EUR centroid)")
 
-for superpop, grp in data.groupby("Superpopulation code"):
-    for keep, sub in grp.groupby("eur_like"):
-        ax.scatter(sub["PC1"], sub["PC2"],
-                   c=colours[keep], marker=shapes[keep],
-                   alpha=0.6, s=15, linewidths=0.5,
-                   label=f"{superpop} — {labels[keep]}" if keep else None)
-
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC2")
-ax.set_title("EUR-like selection (within 3 SD of EUR centroid)")
-plt.tight_layout()
-plt.savefig("pca_eur_selection.png", dpi=150)
-plt.show()
-
-# Save the EUR-like sample list for PLINK
-eur_keep = data[data["eur_like"]][["FID", "IID"]]
-eur_keep.to_csv("samples_EUR_like.txt", sep=" ", index=False, header=False)
-print(f"Saved {len(eur_keep)} EUR-like individuals to samples_EUR_like.txt")
+# Save the sample list for PLINK
+eur_keep <- data[eur_like == TRUE, .(FID, IID)]
+fwrite(eur_keep, "samples_EUR_like.txt", sep = " ", col.names = FALSE)
+cat("Saved", nrow(eur_keep), "EUR-like individuals to samples_EUR_like.txt\n")
 ```
 
-**Download `samples_EUR_like.txt` from Colab** (Files panel → right-click → Download), then upload it to Cloud Shell and apply the filter:
+**Download `samples_EUR_like.txt` from Colab:** in the Files panel (left sidebar), right-click the file → **Download**. Then upload it to Cloud Shell using the ⋮ menu → **Upload**, and apply the filter:
 
 ```bash
-# In Cloud Shell — upload samples_EUR_like.txt first using Cloud Shell upload button
 plink --bfile hapmap3_qc \
       --keep samples_EUR_like.txt \
       --make-bed \
@@ -746,188 +624,181 @@ wc -l hapmap3_EUR.fam
 
 ---
 
-## Part V. Ancestry Prediction from PCA (Colab)
+## Part V. Ancestry Prediction from PCA (Colab — R)
 
-PCA scores can be used to **predict the ancestry** of individuals of unknown origin. This is the principle behind commercial direct-to-consumer genetic ancestry tests (e.g. 23andMe, AncestryDNA).
+PCA scores can be used to **predict the ancestry** of individuals of unknown origin. This is the principle behind commercial genetic ancestry tests (e.g. 23andMe, AncestryDNA).
 
 We use the 1000 Genomes individuals as a **labelled reference panel** and classify them using their PC coordinates.
 
-### 5.1 Prepare features and labels
+### 5.1 Concept: projection onto reference PCs
 
-```python
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, classification_report
-import matplotlib.pyplot as plt
-import seaborn as sns
+The gold-standard research approach is:
+1. Compute PCs on the **reference panel** (known ancestry)
+2. **Project** query samples onto the reference PC axes
+3. Assign ancestry based on proximity in PC space
 
-# Features: top 10 PCs
-pc_features = [f"PC{i}" for i in range(1, 11)]
+For this exercise, all samples are already in the same PCA run, so we can use the PC scores from `hapmap3_pca.eigenvec` directly.
 
-X = data[pc_features].values
-y = data["Superpopulation code"].values
+### 5.2 k-Nearest Neighbours (k-NN) classifier
 
-print(f"Total individuals: {len(X)}")
-print("Superpopulation counts:")
-for pop, n in zip(*np.unique(y, return_counts=True)):
-    print(f"  {pop}: {n}")
+The simplest classifier for ancestry assignment is **k-Nearest Neighbours (k-NN)**. For each individual it finds the $k$ closest individuals (by Euclidean distance in PC space) among the labelled reference and assigns the majority label.
+
+```r
+library(class)   # for knn()
+
+# Features: first 10 PCs
+pc_features <- paste0("PC", 1:10)
+
+X <- as.matrix(data[, ..pc_features])
+y <- data$`Superpopulation code`
+
+cat("Total individuals:", nrow(X), "\n")
+print(table(y))
 ```
 
-### 5.2 Train / test split
+### 5.3 Train / test split
 
-```python
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
-)
+```r
+set.seed(42)
+n         <- nrow(data)
+train_idx <- sample(n, size = floor(0.8 * n), replace = FALSE)
+test_idx  <- setdiff(seq_len(n), train_idx)
 
-print(f"Training set: {len(X_train)} individuals")
-print(f"Test set:     {len(X_test)} individuals")
+train_X <- X[train_idx, ]
+test_X  <- X[test_idx,  ]
+train_y <- y[train_idx]
+test_y  <- y[test_idx]
+
+cat("Training set:", nrow(train_X), "individuals\n")
+cat("Test set:    ", nrow(test_X),  "individuals\n")
 ```
 
-### 5.3 k-Nearest Neighbours classifier
+### 5.4 Run k-NN and evaluate accuracy
 
-```python
-knn = KNeighborsClassifier(n_neighbors=5)
-knn.fit(X_train, y_train)
-y_pred_knn = knn.predict(X_test)
+```r
+predicted <- knn(train = train_X, test = test_X, cl = train_y, k = 5)
+
+# Confusion matrix
+conf_mat <- table(Predicted = predicted, True = test_y)
+print(conf_mat)
 
 # Overall accuracy
-acc_knn = (y_pred_knn == y_test).mean()
-print(f"k-NN accuracy (k=5): {acc_knn * 100:.1f}%")
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+cat("Overall accuracy:", round(accuracy * 100, 1), "%\n")
 
-# Detailed report
-print("\nClassification report:")
-print(classification_report(y_test, y_pred_knn))
-
-# Confusion matrix
-cm = confusion_matrix(y_test, y_pred_knn, labels=np.unique(y))
-fig, ax = plt.subplots(figsize=(7, 5))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=np.unique(y), yticklabels=np.unique(y), ax=ax)
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
-ax.set_title("k-NN confusion matrix (k=5)")
-plt.tight_layout()
-plt.savefig("knn_confusion.png", dpi=150)
-plt.show()
+# Per-population accuracy
+per_pop <- diag(conf_mat) / colSums(conf_mat)
+cat("\nPer-population accuracy:\n")
+print(round(per_pop * 100, 1))
 ```
 
-### 5.4 Effect of k on accuracy
+You should see overall accuracy > 95%, reflecting the clear separation of continental populations in PC space.
 
-```python
-k_values = [1, 3, 5, 10, 20, 50]
-accuracies = []
+### 5.5 Effect of k on accuracy
 
-for k in k_values:
-    knn_k = KNeighborsClassifier(n_neighbors=k)
-    knn_k.fit(X_train, y_train)
-    acc = knn_k.score(X_test, y_test) * 100
-    accuracies.append(acc)
-    print(f"k={k:3d}: {acc:.1f}%")
+```r
+k_values   <- c(1, 3, 5, 10, 20)
+accuracies <- numeric(length(k_values))
 
-plt.figure(figsize=(7, 5))
-plt.plot(k_values, accuracies, "o-", color="steelblue", markersize=8)
-plt.xlabel("k (number of neighbours)")
-plt.ylabel("Classification accuracy (%)")
-plt.title("k-NN ancestry classification accuracy")
-plt.ylim(90, 100)
-plt.tight_layout()
-plt.savefig("knn_accuracy.png", dpi=150)
-plt.show()
+for (i in seq_along(k_values)) {
+  pred           <- knn(train_X, test_X, train_y, k = k_values[i])
+  cm             <- table(pred, test_y)
+  accuracies[i]  <- sum(diag(cm)) / sum(cm) * 100
+}
+
+results <- data.frame(k = k_values, accuracy = accuracies)
+print(results)
+
+ggplot(results, aes(x = k, y = accuracy)) +
+  geom_line() +
+  geom_point(size = 3, colour = "steelblue") +
+  theme_bw() +
+  xlab("k (number of neighbours)") +
+  ylab("Classification accuracy (%)") +
+  ggtitle("k-NN ancestry classification accuracy") +
+  ylim(90, 100)
 ```
 
-### 5.5 Visualise predictions in PC space
+### 5.6 Visualise predictions in PC space
 
-```python
-# Predict ancestry for all individuals
-y_pred_all = knn.predict(X)
-data["predicted"] = y_pred_all
-data["correct"]   = data["predicted"] == data["Superpopulation code"]
+```r
+# Predict ancestry for ALL individuals (k = 5)
+predicted_all <- knn(train = train_X,
+                     test  = X,
+                     cl    = train_y,
+                     k     = 5)
 
-fig, ax = plt.subplots(figsize=(9, 6))
-for superpop, grp in data.groupby("Superpopulation code"):
-    correct   = grp[grp["correct"]]
-    incorrect = grp[~grp["correct"]]
-    ax.scatter(correct["PC1"],   correct["PC2"],   alpha=0.6, s=12, linewidths=0, label=superpop)
-    ax.scatter(incorrect["PC1"], incorrect["PC2"], marker="x", s=60, linewidths=1.5, color="black")
+data[, predicted   := as.character(predicted_all)]
+data[, correct     := predicted == `Superpopulation code`]
 
-ax.scatter([], [], marker="x", color="black", s=60, label="Misclassified")
-ax.set_xlabel("PC1")
-ax.set_ylabel("PC2")
-ax.set_title("k-NN ancestry predictions (k=5)\nBlack × = misclassified")
-ax.legend(title="True superpopulation", bbox_to_anchor=(1.02, 1), loc="upper left")
-plt.tight_layout()
-plt.savefig("knn_predictions.png", dpi=150, bbox_inches="tight")
-plt.show()
+ggplot(data, aes(x = PC1, y = PC2,
+                 colour = `Superpopulation code`,
+                 shape  = correct)) +
+  geom_point(alpha = 0.7, size = 1.8) +
+  scale_shape_manual(values = c(4, 16),
+                     labels = c("Misclassified", "Correct")) +
+  theme_bw() +
+  labs(colour = "True superpopulation",
+       shape  = "Classification",
+       title  = "k-NN ancestry predictions (k = 5)")
 
-misclass = data[~data["correct"]][["IID", "Superpopulation code", "predicted", "PC1", "PC2"]]
-print(f"\nMisclassified individuals: {len(misclass)}")
-print(misclass.head(20).to_string(index=False))
+misclass <- data[correct == FALSE, .(`IID`, `Superpopulation code`, predicted, PC1, PC2)]
+cat("Misclassified individuals:", nrow(misclass), "\n")
+print(head(misclass, 20))
 ```
 
-Misclassifications are most common among **AMR** (Admixed American) individuals, who have mixed European, Native American, and sometimes African ancestry.
+Misclassifications are most common among **AMR** (Admixed American) individuals, who have mixed European, Native American, and African ancestry.
 
-### 5.6 Random Forest classifier
+### 5.7 Random Forest classifier (bonus)
 
-Random Forests typically outperform k-NN for ancestry classification because they capture non-linear decision boundaries.
+Random Forests typically outperform k-NN because they capture non-linear decision boundaries.
 
-```python
-rf = RandomForestClassifier(n_estimators=500, random_state=42, n_jobs=-1)
-rf.fit(X_train, y_train)
-y_pred_rf = rf.predict(X_test)
+```r
+library(randomForest)
 
-acc_rf = (y_pred_rf == y_test).mean()
-print(f"Random Forest accuracy: {acc_rf * 100:.1f}%")
-print(f"k-NN accuracy:          {acc_knn * 100:.1f}%")
+train_df <- data.frame(train_X, superpop = factor(train_y))
+test_df  <- data.frame(test_X)
 
-print("\nClassification report (Random Forest):")
-print(classification_report(y_test, y_pred_rf))
+rf_model <- randomForest(superpop ~ ., data = train_df,
+                         ntree = 500, importance = TRUE)
 
-# Confusion matrix
-cm_rf = confusion_matrix(y_test, y_pred_rf, labels=np.unique(y))
-fig, ax = plt.subplots(figsize=(7, 5))
-sns.heatmap(cm_rf, annot=True, fmt="d", cmap="Greens",
-            xticklabels=np.unique(y), yticklabels=np.unique(y), ax=ax)
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
-ax.set_title("Random Forest confusion matrix")
-plt.tight_layout()
-plt.savefig("rf_confusion.png", dpi=150)
-plt.show()
+rf_pred <- predict(rf_model, newdata = test_df)
+rf_cm   <- table(Predicted = rf_pred, True = test_y)
+rf_acc  <- sum(diag(rf_cm)) / sum(rf_cm) * 100
+
+cat("Random Forest accuracy:", round(rf_acc, 1), "%\n")
+cat("k-NN accuracy:         ", round(accuracy * 100, 1), "%\n")
+print(rf_cm)
+
+# Variable importance: which PCs matter most?
+imp <- data.frame(
+  PC          = rownames(importance(rf_model)),
+  MeanDecGini = importance(rf_model)[, "MeanDecreaseGini"]
+)
+
+ggplot(imp, aes(x = reorder(PC, MeanDecGini), y = MeanDecGini)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  theme_bw() +
+  xlab("Principal Component") +
+  ylab("Mean Decrease in Gini") +
+  ggtitle("PC importance for ancestry classification\n(Random Forest)")
 ```
 
-**Variable importance — which PCs matter most?**
-
-```python
-importance = pd.DataFrame({
-    "PC": pc_features,
-    "importance": rf.feature_importances_
-}).sort_values("importance", ascending=True)
-
-plt.figure(figsize=(7, 5))
-plt.barh(importance["PC"], importance["importance"], color="steelblue")
-plt.xlabel("Mean Decrease in Impurity")
-plt.title("PC importance for ancestry classification\n(Random Forest)")
-plt.tight_layout()
-plt.savefig("rf_importance.png", dpi=150)
-plt.show()
-```
-
-PC1 and PC2 typically dominate because they capture the major continental ancestry axes.
+PC1 and PC2, which capture major continental ancestry axes, typically dominate the importance ranking.
 
 ### Exercise 3
 
-1. What is the k-NN classification accuracy for $k = 5$ using 10 PCs? Which superpopulation is hardest to classify and why?
-2. Repeat the k-NN analysis using only PC1 and PC2 (set `pc_features = ["PC1", "PC2"]`). How much does accuracy drop?
-3. Look at the misclassified individuals. Which true superpopulation do they belong to, and which are they assigned to? What does this tell you about genetic admixture?
+1. What is the k-NN accuracy for $k = 5$ using 10 PCs? Which superpopulation is hardest to classify and why?
+2. Repeat using only PC1 and PC2 (`pc_features <- c("PC1", "PC2")`). How much does accuracy drop?
+3. Look at the misclassified individuals. Which true superpopulation do they belong to, and which are they assigned to?
 4. Compare k-NN vs Random Forest accuracy. Which performs better?
 
 ---
 
 ## Summary
 
-### Cloud Shell pipeline (PLINK commands)
+### Cloud Shell — PLINK pipeline
 
 ```bash
 # 1. QC
@@ -935,14 +806,12 @@ plink --bfile hapmap3 \
       --mind 0.05 --geno 0.02 --maf 0.01 --hwe 1e-6 \
       --make-bed --out hapmap3_qc
 
-# 2. Summary statistics for Colab exploration
+# 2. Summary statistics
 plink --bfile hapmap3_qc --missing --freq --hardy --out hapmap3_summary
 plink --bfile hapmap3_qc --het --out hapmap3_het
 
-# 3. Association test (no covariates)
-plink --bfile hapmap3_qc \
-      --pheno BMI_pheno.txt --assoc --linear \
-      --out bmi_assoc
+# 3. Association test
+plink --bfile hapmap3_qc --pheno BMI_pheno.txt --assoc --linear --out bmi_assoc
 
 # 4. LD pruning + PCA
 plink --bfile hapmap3_qc --indep-pairwise 50 5 0.2 --out hapmap3_pruned
@@ -951,27 +820,36 @@ plink --bfile hapmap3_qc --extract hapmap3_pruned.prune.in \
 plink --bfile hapmap3_pruned_set --pca 20 --out hapmap3_pca
 
 # 5. PCA-corrected association
-plink --bfile hapmap3_qc \
-      --pheno BMI_pheno.txt --assoc --linear \
+plink --bfile hapmap3_qc --pheno BMI_pheno.txt --assoc --linear \
       --covar hapmap3_pca.eigenvec --covar-number 1-10 \
       --out bmi_assoc_pca_corrected
 
-# 6. Package results for Colab
+# 6. Package files for Colab
 zip lab4_results.zip hapmap3_summary.* hapmap3_het.het \
     hapmap3_pca.eigenvec hapmap3_pca.eigenval pca_EUR.eigenvec \
     bmi_assoc.assoc.linear bmi_assoc_pca_corrected.assoc.linear \
     1kg_samples.txt
 ```
 
+### Colab (R) — key libraries
+
+| Library | Purpose |
+|---------|---------|
+| `data.table` | Fast reading of large PLINK output files |
+| `ggplot2` | Plotting |
+| `patchwork` | Combining multiple plots |
+| `class` | k-NN classifier (`knn()`) |
+| `randomForest` | Random Forest classifier |
+
 ### Key concepts from this lab
 
 | Concept | What it measures | Typical threshold / use |
 |---------|-----------------|-------------------------|
-| SNP missingness | Data completeness per SNP | Remove SNPs with F\_MISS > 0.02 |
-| Individual missingness | Data completeness per sample | Remove individuals with F\_MISS > 0.05 |
+| SNP missingness | Data completeness per SNP | Remove F\_MISS > 0.02 |
+| Individual missingness | Data completeness per sample | Remove F\_MISS > 0.05 |
 | Inbreeding coefficient F | Heterozygosity deviation | Flag \|F\| > 0.15 |
-| HWE p-value | Genotyping quality | Remove SNPs with $p < 10^{-6}$ |
-| MAF | Minor allele frequency | Remove SNPs with MAF $< 0.01$ |
+| HWE p-value | Genotyping quality | Remove $p < 10^{-6}$ |
+| MAF | Minor allele frequency | Remove MAF $< 0.01$ |
 | GWAS p-value | Association significance | $p < 5 \times 10^{-8}$ |
 | $\lambda_{GC}$ | Genomic inflation / stratification | Should be close to 1.0 |
 | PC scores | Ancestry axes | Use top 10 as GWAS covariates |
