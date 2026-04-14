@@ -4,7 +4,7 @@ In this lab we will learn how to detect and analyse **Gene × Environment (GxE) 
 
 We will use:
 
-* `bpdata.csv` from SISG 2024 (1,000 individuals, 11 candidate SNPs, blood pressure, sex, BMI)
+* `bpdata.csv` (1,000 individuals, 11 candidate SNPs, blood pressure, sex, BMI)
 * The PGS for `Trait2` computed in Lab 6
 * R (Google Colab or RStudio)
 
@@ -34,18 +34,14 @@ cd $HOME
 mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts
 ```
 
-Copy the SISG2024 data we need (if not already done from Lab 6):
+Copy the data we need from the course repo:
 
 ```bash
-# If you already cloned SISG2024 in Lab 6, just copy the extra files
-cp ~/Sociogenomics/Data/SISG2024/data/bpdata.csv ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/week7/bpdata.csv ~/Sociogenomics/Data/
 
-# Otherwise, clone it first
-cd ~/Sociogenomics/Data
-git clone --depth 1 https://github.com/joellembatchou/SISG2024_Association_Mapping.git SISG2024 2>/dev/null
-cp SISG2024/data/bpdata.csv .
-cp SISG2024/data/1kg.Trait2.phen .
-cp SISG2024/data/1kg-sample-2504-phased.txt .
+# If not already done in Lab 6, copy also the phenotype and population files
+cp ~/sociogenomics_2025_2026/data/week6/1kg.Trait2.phen ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/week6/1kg-sample-2504-phased.txt ~/Sociogenomics/Data/
 ```
 
 > **Note:** Most of this lab is in R. You can use Google Colab (R runtime) or RStudio.

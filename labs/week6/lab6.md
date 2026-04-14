@@ -2,11 +2,11 @@
 
 In this lab we will learn how to construct and evaluate **polygenic scores (PGS)** using **PRSice-2** --- the most widely used tool for the clumping + thresholding (C+T) method. PRSice automates the pipeline we discussed in class: QC, clumping, scoring at multiple $p$-value thresholds, regression, and visualisation.
 
-We will use data from the SISG 2024 Association Mapping module:
+We will use the following data:
 
 * `1kg_hm3` genotypes (2,504 individuals, $\sim$1.4M HapMap3 SNPs) as the **target sample**
 * `Trait2.ma` --- GWAS summary statistics from $\sim$350K UK Biobank European participants as the **base (discovery) sample**
-* `1kg.Trait2.phen` --- the simulated phenotype file
+* `1kg.Trait2.phen` --- a simulated polygenic phenotype aligned to the 1000 Genomes individuals
 
 The lab covers:
 
@@ -73,7 +73,7 @@ ls ~/Sociogenomics/Data/Trait2.ma ~/Sociogenomics/Data/1kg.Trait2.phen \
    ~/Sociogenomics/Data/EUR.id ~/Sociogenomics/Data/1kg-sample-2504-phased.txt
 ```
 
-> **Note:** These files come from the SISG 2024 Association Mapping module. The summary statistics are from a GWAS of a simulated polygenic trait on $\sim$350K UK Biobank European participants. The phenotype file has 2,504 simulated values aligned to the 1000 Genomes individuals.
+> **Note:** The summary statistics come from a GWAS of a simulated polygenic trait on $\sim$350K UK Biobank European participants. The phenotype file has 2,504 simulated values aligned to the 1000 Genomes individuals.
 
 ### Install PRSice-2
 
