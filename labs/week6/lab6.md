@@ -155,54 +155,36 @@ Three columns: `FID IID Trait2` (continuous, $h^2 \approx 0.2$).
 
 ---
 
-## Part II. Quality control
+## Part II. Reuse the QC files from Week 5
 
-Before running PRSice, we QC the target sample with standard PLINK filters (as in weeks 3--4):
+In Week 5 we already produced:
 
-```bash
-plink --bfile 1kg_hm3 \
-      --mind 0.05 \
-      --geno 0.02 \
-      --maf 0.01 \
-      --hwe 1e-6 \
-      --make-bed \
-      --out ~/Sociogenomics/Results/1kg_qc
-```
+* `1kg_hm3_QC_CEU.{bed,bim,fam}` --- QC'd, European-only genotype file (full QC pipeline + `--keep 1kg_samples_EUR.txt`)
+* `1kg_pca.eigenvec` --- 10 principal components
+
+Check they are present:
 
 ```bash
-wc -l ~/Sociogenomics/Results/1kg_qc.bim
-wc -l ~/Sociogenomics/Results/1kg_qc.fam
+ls ~/Sociogenomics/Data/1kg_hm3_QC_CEU.* ~/Sociogenomics/Data/1kg_pca.eigenvec
 ```
 
-Restrict to European individuals (the GWAS was European-ancestry):
+If the files are missing, re-run the Week 5 QC pipeline:
 
 ```bash
-plink --bfile ~/Sociogenomics/Results/1kg_qc \
-      --keep EUR.id \
-      --make-bed \
-      --out ~/Sociogenomics/Results/1kg_eur
+plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
+      --autosome --snps-only \
+      --mind 0.03 --geno 0.05 --maf 0.05 --hwe 1e-06 \
+      --rel-cutoff 0.1 \
+      --keep ~/Sociogenomics/Data/1kg_samples_EUR.txt \
+      --make-bed --out ~/Sociogenomics/Data/1kg_hm3_QC_CEU
 ```
 
-Compute PCA for ancestry covariates:
+**Question:** How many SNPs and how many European individuals are in the QC'd file?
 
 ```bash
-plink --bfile ~/Sociogenomics/Results/1kg_eur \
-      --indep-pairwise 500 50 0.2 \
-      --out ~/Sociogenomics/Results/1kg_ldprune
-
-plink --bfile ~/Sociogenomics/Results/1kg_eur \
-      --extract ~/Sociogenomics/Results/1kg_ldprune.prune.in \
-      --pca 10 \
-      --out ~/Sociogenomics/Results/1kg_eur_pca
+wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.bim
+wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.fam
 ```
-
-**Question:** How many European individuals remain after QC?
-
-### Exercise 1
-
-1. Report SNPs and individuals at each QC step.
-2. Why do we restrict to Europeans before running PRSice?
-3. What would happen if we included all ancestries?
 
 ---
 
@@ -227,7 +209,7 @@ cd ~/Sociogenomics
 Rscript PRSice.R --dir . \
     --prsice ./PRSice_linux \
     --base ~/Sociogenomics/Data/Trait2.ma \
-    --target ~/Sociogenomics/Results/1kg_eur \
+    --target ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
     --snp SNP \
     --A1 A1 \
     --A2 A2 \
@@ -291,7 +273,7 @@ Run PRSice again without `--fastscore` to scan many thresholds:
 Rscript PRSice.R --dir . \
     --prsice ./PRSice_linux \
     --base ~/Sociogenomics/Data/Trait2.ma \
-    --target ~/Sociogenomics/Results/1kg_eur \
+    --target ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
     --snp SNP \
     --A1 A1 \
     --A2 A2 \
@@ -340,7 +322,7 @@ pheno <- read.table("~/Sociogenomics/Data/1kg.Trait2.phen",
                     col.names = c("FID", "IID", "Trait2"))
 
 pca_cols <- c("FID", "IID", paste0("PC", 1:10))
-pca <- read.table("~/Sociogenomics/Results/1kg_eur_pca.eigenvec",
+pca <- read.table("~/Sociogenomics/Data/1kg_pca.eigenvec",
                   header = FALSE, col.names = pca_cols)
 
 # Merge
@@ -446,7 +428,7 @@ boot.ci(results_boot, type = "norm")
 Compute the PGS on all 2,504 individuals (not just Europeans):
 
 ```bash
-plink --bfile ~/Sociogenomics/Results/1kg_qc \
+plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
       --score ~/Sociogenomics/Results/Trait2_PRSice.snp 1 2 4 header \
       --out ~/Sociogenomics/Results/Trait2_pgs_all_pops
 ```
