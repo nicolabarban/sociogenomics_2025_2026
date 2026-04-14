@@ -1,0 +1,27 @@
+title: Sociogenomics 2025/2026
+description: Lab materials for the Sociogenomics course — University of Bologna
+theme: jekyll-theme-cayman
+
+# Markdown settings with MathJax support
+markdown: kramdown
+kramdown:
+  math_engine: mathjax
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+# Permalinks and defaults
+permalink: pretty
+
+# Exclude from build
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .git
+  - .claude
+  - .obsidian
+  - "*.log"
+  - "*.Rhistory"
+  - "*.DS_Store"
