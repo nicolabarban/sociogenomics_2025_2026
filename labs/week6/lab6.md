@@ -265,6 +265,14 @@ cat ~/Sociogenomics/Results/Trait2_PRSice.summary
 
 **Question:** Which $p$-value threshold gives the best $R^2$?
 
+### The barplot
+
+PRSice automatically produces a barplot of the incremental $R^2$ at each tested threshold:
+
+![PRSice barplot of R² by p-value threshold](figures/PRSice_barplot.png)
+
+The best threshold is highlighted in the darker colour. For `Trait2` in our data, the best threshold is around $p < 0.05$ with $R^2 \approx 12\%$.
+
 ### High-resolution scan
 
 Run PRSice again without `--fastscore` to scan many thresholds:
@@ -287,7 +295,11 @@ Rscript PRSice.R --dir . \
     --out ~/Sociogenomics/Results/Trait2_PRSice_hires
 ```
 
-This scans thresholds from $p = 10^{-4}$ upward in steps of $5\times10^{-5}$ and produces a continuous plot.
+This scans thresholds from $p = 10^{-4}$ upward in steps of $5\times10^{-5}$ and produces a continuous plot:
+
+![PRSice high-resolution plot: R² as a function of the p-value threshold](figures/PRSice_highres.png)
+
+The peak identifies the optimal threshold for this trait and dataset.
 
 ### Exercise 2
 
