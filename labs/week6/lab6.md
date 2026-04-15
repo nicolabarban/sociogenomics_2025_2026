@@ -256,18 +256,61 @@ summary(mod)
 
 ## Part IV. The C+T method step by step with PLINK
 
-Before jumping to PRSice, let us see what the **Clumping + Thresholding** (C+T) method does under the hood. It has two steps:
+Before jumping to PRSice, let us see what the **Clumping + Thresholding** (C+T) method does under the hood. It has three steps:
 
+0. **Harmonise alleles:** remove ambiguous SNPs and flip strands if needed
 1. **Clumping:** keep only one SNP per LD block (the most significant one)
 2. **Thresholding + Scoring:** pick a $p$-value cut-off, then compute the weighted sum of alleles
 
-### Step 1. Clump the summary statistics with PLINK
+### Step 0. Remove ambiguous SNPs and check strand flipping
+
+When the discovery GWAS and the target genotype data come from different sources, SNPs with **A/T** or **C/G** alleles are **ambiguous**: without knowing the strand, we cannot tell whether the effect allele matches. These are typically **removed**.
+
+For the remaining SNPs, we check if the alleles **match directly** (e.g., base A/G vs target A/G) or if they need to be **flipped** to the complementary strand (base A/G vs target T/C).
+
+Here is a one-shot `awk` script that does both:
 
 ```bash
 cd ~/Sociogenomics/Data
 
+awk 'BEGIN{c["A"]="T"; c["T"]="A"; c["C"]="G"; c["G"]="C"}
+NR==FNR {bim_a1[$2]=$5; bim_a2[$2]=$6; next}
+FNR==1 {print; next}
+{
+  # Skip ambiguous SNPs (A/T or C/G)
+  if (($2=="A"&&$3=="T")||($2=="T"&&$3=="A")||
+      ($2=="C"&&$3=="G")||($2=="G"&&$3=="C")) { ambig++; next }
+  # Skip if not in target
+  if (!($1 in bim_a1)) { nobim++; next }
+  a1=$2; a2=$3; ba1=bim_a1[$1]; ba2=bim_a2[$1]
+  # Direct match: print as-is
+  if ((a1==ba1 && a2==ba2) || (a1==ba2 && a2==ba1)) { direct++; print; next }
+  # Strand flip needed: replace alleles with their complements
+  if ((c[a1]==ba1 && c[a2]==ba2) || (c[a1]==ba2 && c[a2]==ba1)) {
+    $2 = c[a1]; $3 = c[a2]; flip++; print; next
+  }
+  mismatch++
+}
+END {
+  print "ambiguous:   ", ambig+0 > "/dev/stderr"
+  print "not in bim:  ", nobim+0 > "/dev/stderr"
+  print "direct:      ", direct+0 > "/dev/stderr"
+  print "strand flip: ", flip+0 > "/dev/stderr"
+  print "mismatch:    ", mismatch+0 > "/dev/stderr"
+}' 1kg_hm3_QC_CEU.bim Trait2.ma > Trait2_clean.ma
+
+wc -l Trait2_clean.ma
+```
+
+Expected output (stderr): $\sim$2,355 ambiguous SNPs removed, $\sim$17,101 SNPs with direct allele match. In this dataset the base and target come from the same reference panel, so **no strand flipping is needed**. In real analyses, you typically see a small fraction of SNPs that do require flipping.
+
+> **Note:** PLINK's `--clump` and `--score` handle simple allele swaps automatically, but they cannot resolve ambiguous SNPs --- hence it is best practice to remove them before scoring.
+
+### Step 1. Clump the cleaned summary statistics with PLINK
+
+```bash
 plink --bfile 1kg_hm3_QC_CEU \
-      --clump Trait2.ma \
+      --clump Trait2_clean.ma \
       --clump-p1 1 \
       --clump-r2 0.1 \
       --clump-kb 250 \
@@ -309,7 +352,7 @@ The score file needs three columns: `SNP A1 BETA`. We filter the summary statist
 ```bash
 awk 'NR==FNR {snps[$1]=1; next} FNR==1 {next} ($1 in snps) && $7 < 5e-8 {print $1, $2, $5}' \
     ~/Sociogenomics/Results/clumped_snps.txt \
-    ~/Sociogenomics/Data/Trait2.ma \
+    ~/Sociogenomics/Data/Trait2_clean.ma \
     > ~/Sociogenomics/Results/score_5e8.txt
 
 wc -l ~/Sociogenomics/Results/score_5e8.txt
@@ -336,9 +379,11 @@ The `SCORE` column is the PGS for each individual.
 
 ### Exercise 2
 
-1. How many clumps did PLINK produce?
-2. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
-3. Repeat the `--score` step at a looser threshold (e.g., $p < 0.05$). Does the PGS distribution change? Does the correlation with the phenotype improve?
+1. How many ambiguous SNPs (A/T or C/G) were removed from `Trait2.ma`?
+2. How many SNPs required strand flipping? Why do you think the number is zero in this dataset?
+3. How many clumps did PLINK produce from the cleaned summary stats?
+4. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
+5. Repeat the `--score` step at a looser threshold (e.g., $p < 0.05$). Does the PGS distribution change? Does the correlation with the phenotype improve?
 
 ---
 
