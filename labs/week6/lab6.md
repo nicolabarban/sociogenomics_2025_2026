@@ -65,6 +65,9 @@ All files needed for this lab --- the 1000 Genomes HapMap3 genotypes, summary st
 
 ```bash
 cp ~/sociogenomics_2025_2026/data/1kg_hm3.* \
+   ~/sociogenomics_2025_2026/data/1kg_hm3_QC_CEU.* \
+   ~/sociogenomics_2025_2026/data/1kg_pca.eigenvec \
+   ~/sociogenomics_2025_2026/data/1kg_pca.eigenval \
    ~/sociogenomics_2025_2026/data/Trait2.ma \
    ~/sociogenomics_2025_2026/data/1kg.Trait2.phen \
    ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt \
@@ -177,22 +180,13 @@ In Week 5 we already produced:
 * `1kg_hm3_QC_CEU.{bed,bim,fam}` --- QC'd, European-only genotype file (full QC pipeline + `--keep 1kg_samples_EUR.txt`)
 * `1kg_pca.eigenvec` --- 10 principal components
 
-Check they are present:
+They are already in `~/Sociogenomics/Data/` thanks to the `cp` block in Section 0. Quick check:
 
 ```bash
 ls ~/Sociogenomics/Data/1kg_hm3_QC_CEU.* ~/Sociogenomics/Data/1kg_pca.eigenvec
 ```
 
-If the files are missing, re-run the Week 5 QC pipeline:
-
-```bash
-plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
-      --autosome --snps-only \
-      --mind 0.03 --geno 0.05 --maf 0.05 --hwe 1e-06 \
-      --rel-cutoff 0.1 \
-      --keep ~/Sociogenomics/Data/1kg_samples_EUR.txt \
-      --make-bed --out ~/Sociogenomics/Data/1kg_hm3_QC_CEU
-```
+> **Reminder:** These files are pre-computed outputs of the Week 5 pipeline (QC + PCA on the European subset), distributed with the course repo so you can jump straight into the PGS analysis.
 
 **Question:** How many SNPs and how many European individuals are in the QC'd file?
 
