@@ -42,6 +42,12 @@ cd $HOME
 mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts ~/Sociogenomics/Software
 ```
 
+If you want to start from a clean state, wipe any previous data first:
+
+```bash
+rm -rf ~/Sociogenomics/Data/*
+```
+
 ### Copy all lab data from the course repo
 
 All files needed for this lab --- the 1000 Genomes HapMap3 genotypes, summary statistics, phenotype, and population info --- are in the course repository under `data/` (large files are handled via Git LFS, so make sure you ran `git lfs pull` above). Copy them into your working data directory in one go:
