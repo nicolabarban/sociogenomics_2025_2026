@@ -35,13 +35,9 @@ Each individual's `SCORE` is simply $0.4 \times$ their A-allele count at rs99305
 
 ### 1. How many ambiguous SNPs were removed?
 
-**2,355** out of 32,260 SNPs in `Trait2.ma` have A/T or C/G alleles and were filtered out.
+**2,355** out of 32,260 SNPs in `Trait2.ma` have A/T or C/G alleles and were filtered out (about 7% of the base file).
 
-### 2. How many SNPs required strand flipping?
-
-**Zero** in this dataset. Both the base summary statistics (UK Biobank) and the target genotypes (1000 Genomes) are reported on the forward strand from the same reference build. In real analyses --- especially when combining data from different consortia and platforms --- a non-trivial fraction usually requires flipping.
-
-### 3. How many clumps did PLINK produce?
+### 2. How many clumps did PLINK produce?
 
 **$\sim$2,249 clumps** from $\sim$17,100 variants that match between target and cleaned base.
 
@@ -50,7 +46,7 @@ wc -l ~/Sociogenomics/Results/Trait2_clumped.clumped
 # 2252 (includes header + blank line)
 ```
 
-### 4. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
+### 3. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
 
 ```bash
 wc -l ~/Sociogenomics/Results/score_5e8.txt
@@ -59,7 +55,7 @@ wc -l ~/Sociogenomics/Results/score_5e8.txt
 
 **737 independent genome-wide significant SNPs**.
 
-### 5. Does a looser threshold change the PGS distribution?
+### 4. Does a looser threshold change the PGS distribution?
 
 Yes. At $p < 0.05$ there are $\sim$2,000 SNPs, the PGS variance is larger, and the correlation with `Trait2` is typically higher. This is the classical polygenic signal --- many small effects together explain more variance.
 
