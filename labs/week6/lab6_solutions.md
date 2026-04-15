@@ -17,9 +17,9 @@ $\approx$ **761 K SNPs**, **374 European individuals**.
 
 ---
 
-## Part III — Monogenic FTO score (Exercise 1)
+## Part III — Monogenic FTO score
 
-Genotype distribution:
+Genotype distribution of the FTO score:
 
 | SCORE | A-allele count | $N$ |
 |---|---|---|
@@ -27,41 +27,11 @@ Genotype distribution:
 | 0.2 | 1 | 160 |
 | 0.4 | 2 | 127 |
 
-### 1. Slope of `BMI ~ SCORE`
-
-In our 1000 Genomes target sample (with simulated BMI from `BMI_pheno.txt`), the slope is **not** close to the published 0.4 kg/m² per allele:
-
-```r
-summary(lm(PHENO ~ SCORE, data = d))$coefficients
-#              Estimate  Std. Error  t value  Pr(>|t|)
-# (Intercept)   24.289      0.272     89.3    <2e-16
-# SCORE         -0.480      1.018     -0.47    0.64
-```
-
-The slope is $\approx -0.48$ kg/m² --- wrong sign and non-significant.
-
-**Why?** The `BMI_pheno.txt` in the course dataset was *simulated* for teaching, not generated from the real FTO effect. Students should note that:
-
-* The **published effect** (Frayling 2007) was estimated in $N > 38{,}000$ individuals
-* Our sample is $N = 374$ Europeans with a simulated phenotype
-* Don't be surprised that a single SNP is not detectable here
-
-### 2. Why is $R^2$ so small?
-
-$R^2 \approx 6 \times 10^{-4}$ --- well under 0.1%.
-
-Even at the true published effect size (0.4 kg/m² per allele in a population with SD(BMI) $\approx$ 4), the variance explained is:
-$$R^2 \approx 2 p (1-p) \beta^2 / V_P \approx 0.003 = 0.3\%$$
-
-This is the fundamental ``4th law'' of behavioural genetics: **single SNPs explain tiny fractions of complex-trait variance**. We need to aggregate thousands of SNPs to make useful predictions.
-
-### 3. Restricting to carriers (SCORE > 0)
-
-Dropping the 87 non-carriers, the comparison between 1 and 2 A alleles has even smaller power (fewer individuals, less genetic variance). The point estimate remains noisy in this sample size.
+Each individual's `SCORE` is simply $0.4 \times$ their A-allele count at rs9930506. There is no regression exercise here --- this section is just a warm-up to see `--score` in action on a single SNP.
 
 ---
 
-## Part IV — C+T step by step with PLINK (Exercise 2)
+## Part IV — C+T step by step with PLINK (Exercise 1)
 
 ### 1. How many ambiguous SNPs were removed?
 
@@ -95,7 +65,7 @@ Yes. At $p < 0.05$ there are $\sim$2,000 SNPs, the PGS variance is larger, and t
 
 ---
 
-## Part V — PGS with PRSice-2 (Exercise 3)
+## Part V — PGS with PRSice-2 (Exercise 2)
 
 After running PRSice, the file `Trait2_PRSice.summary` reports:
 
@@ -142,7 +112,7 @@ Mean values differ by about 10% because PLINK normalises by allele count per ind
 
 ---
 
-## Part VI — Analyse the PGS in R (Exercise 4)
+## Part VI — Analyse the PGS in R (Exercise 3)
 
 ### 1. Incremental $R^2$
 
@@ -186,7 +156,7 @@ The optimal threshold here is $p < 0.5$. Adding *all* remaining SNPs ($p \leq 1$
 
 ---
 
-## Part VII — Cross-ancestry portability (Exercise 5, optional)
+## Part VII — Cross-ancestry portability (Exercise 4, optional)
 
 Applying the score file to all ancestries and computing $R^2$ by super-population:
 

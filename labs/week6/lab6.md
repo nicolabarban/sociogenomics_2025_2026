@@ -234,23 +234,7 @@ head ~/Sociogenomics/Results/FTOscore.profile
 
 The `SCORE` column takes three values: 0, 0.2, or 0.4 --- one number per `A` allele copy, multiplied by the effect size (0.4).
 
-Check the association with BMI in R:
-
-```r
-d <- read.table("~/Sociogenomics/Results/FTOscore.profile", header = TRUE)
-mod <- lm(PHENO ~ SCORE, data = d)
-summary(mod)
-```
-
-**Question:** Is the effect of rs9930506 on BMI in the expected direction? Is it statistically significant in this sample? Why is the $R^2$ so small?
-
 > **Key idea:** a monogenic score is a special case of a polygenic score with only one SNP. This is why individual GWAS hits have almost no predictive power --- we need thousands of SNPs to explain meaningful variance.
-
-### Exercise 1
-
-1. What is the slope of the regression `BMI ~ SCORE`? Is it close to the published 0.4 kg/m² per A allele?
-2. What is the $R^2$? Why is it so small even though the effect is real?
-3. Repeat the analysis excluding `SCORE == 0` (non-carriers). How does the comparison between 1 and 2 A alleles change?
 
 ---
 
@@ -377,7 +361,7 @@ head ~/Sociogenomics/Results/Trait2_plink_5e8.profile
 
 The `SCORE` column is the PGS for each individual.
 
-### Exercise 2
+### Exercise 1
 
 1. How many ambiguous SNPs (A/T or C/G) were removed from `Trait2.ma`?
 2. How many SNPs required strand flipping? Why do you think the number is zero in this dataset?
@@ -467,7 +451,7 @@ PRSice automatically produces a barplot of the incremental $R^2$ at each tested 
 
 The best threshold is highlighted in the darker colour.
 
-### Exercise 3
+### Exercise 2
 
 1. What is the best $p$-value threshold for Trait2?
 2. How many SNPs are included at that threshold?
@@ -596,7 +580,7 @@ results_boot <- boot(data = d, statistic = rsq_fn, R = 1000)
 boot.ci(results_boot, type = "norm")
 ```
 
-### Exercise 4
+### Exercise 3
 
 1. What is the incremental $R^2$ of the best PGS?
 2. What is the 95% bootstrap CI?
@@ -642,7 +626,7 @@ for (p in c("EUR", "EAS", "SAS", "AFR", "AMR")) {
 
 **Question:** In which population is the PGS most predictive? Least predictive? Why?
 
-### Exercise 5 (optional)
+### Exercise 4 (optional)
 
 1. Boxplot of PGS values by super-population --- any systematic shift?
 2. Why is the PGS less accurate in African-ancestry populations?
