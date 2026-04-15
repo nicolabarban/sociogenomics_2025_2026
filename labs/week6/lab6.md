@@ -304,21 +304,44 @@ The best threshold is highlighted in the darker colour.
 
 PRSice is a convenience wrapper. The actual scoring step is just a weighted sum of allele counts, which PLINK can do directly with `--score`. This is useful when you want to apply a fixed set of SNP weights to any target file (e.g., for cross-ancestry evaluation).
 
-PRSice writes the selected SNPs and their effect sizes to a `*.snp` file. The relevant columns are `SNP A1 BP P2` (we want columns 1, 2, 4).
+First, re-run PRSice with `--print-snp` so that it writes the list of clumped SNPs to a `*.snp` file:
 
 ```bash
-head ~/Sociogenomics/Results/Trait2_PRSice.snp
+Rscript PRSice.R --dir . \
+    --prsice ./PRSice_linux \
+    --base ~/Sociogenomics/Data/Trait2.ma \
+    --target ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno ~/Sociogenomics/Data/1kg.Trait2.phen \
+    --binary-target F \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 \
+    --fastscore --all-score --print-snp \
+    --out ~/Sociogenomics/Results/Trait2_PRSice
 ```
 
-Pass it to PLINK:
+The `*.snp` file lists the SNPs that survived clumping (CHR, SNP, BP, P, Base) but does **not** contain the effect allele or the effect size. We build the score file by joining it with `Trait2.ma`:
+
+```bash
+awk 'NR==FNR {snps[$2]=1; next} $1 in snps {print $1, $2, $5}' \
+    ~/Sociogenomics/Results/Trait2_PRSice.snp \
+    ~/Sociogenomics/Data/Trait2.ma \
+    > ~/Sociogenomics/Results/Trait2_score.txt
+
+head ~/Sociogenomics/Results/Trait2_score.txt
+wc -l ~/Sociogenomics/Results/Trait2_score.txt
+```
+
+The result is a 3-column file: `SNP A1 BETA`.
+
+Run PLINK `--score`:
 
 ```bash
 plink --bfile ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
-      --score ~/Sociogenomics/Results/Trait2_PRSice.snp 1 2 4 header \
+      --score ~/Sociogenomics/Results/Trait2_score.txt 1 2 3 header \
       --out ~/Sociogenomics/Results/Trait2_plink_score
 ```
 
-The `1 2 4 header` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 4, and there is a header line.
+The `1 2 3 header` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 3, and there is a header line.
 
 Inspect the output:
 
@@ -326,7 +349,7 @@ Inspect the output:
 head ~/Sociogenomics/Results/Trait2_plink_score.profile
 ```
 
-The `SCORE` column is the same PGS PRSice computed internally.
+The `SCORE` column is the PGS. It is proportional to what PRSice computed internally, modulo scaling by the number of SNPs.
 
 ### Exercise 2
 
@@ -472,11 +495,11 @@ Compute the PGS on all 2,504 individuals (not just Europeans):
 
 ```bash
 plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
-      --score ~/Sociogenomics/Results/Trait2_PRSice.snp 1 2 4 header \
+      --score ~/Sociogenomics/Results/Trait2_score.txt 1 2 3 header \
       --out ~/Sociogenomics/Results/Trait2_pgs_all_pops
 ```
 
-> **Note:** The `.snp` file from PRSice lists selected SNPs with effect allele and weight (columns 1, 2, 4).
+> **Note:** We reuse the `Trait2_score.txt` file built in Part III (clumped SNPs with effect allele and $\hat\beta$).
 
 In R, load the scores, merge with phenotype + population info, and compute $R^2$ by super-population:
 

@@ -44,6 +44,7 @@
 ## Week 6 — Polygenic Scores
 
 * [Lab 6 — PGS with PRSice-2](labs/week6/lab6.md)
+* [Solutions](labs/week6/lab6_solutions.md)
 
 <!--
 ## Week 7 — Gene × Environment
