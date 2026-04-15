@@ -281,7 +281,6 @@ Key outputs:
 | `*.prsice` | Results at each threshold |
 | `*.all_score` | PGS for each individual at each threshold |
 | `*_BARPLOT_*.png` | Barplot of $R^2$ by threshold |
-| `*_HIGH-RES_PLOT_*.png` | Fine-grained $R^2$ curve |
 
 View the summary:
 
@@ -295,16 +294,46 @@ cat ~/Sociogenomics/Results/Trait2_PRSice.summary
 
 PRSice automatically produces a barplot of the incremental $R^2$ at each tested threshold:
 
-![PRSice barplot of R² by p-value threshold](figures/PRSice_barplot.png)
+<img src="figures/PRSice_barplot.png" width="500">
 
-The best threshold is highlighted in the darker colour. For `Trait2` in our data, the best threshold is around $p < 0.05$ with $R^2 \approx 12\%$.
+The best threshold is highlighted in the darker colour.
+
+---
+
+### Compute the same PGS with PLINK `--score`
+
+PRSice is a convenience wrapper. The actual scoring step is just a weighted sum of allele counts, which PLINK can do directly with `--score`. This is useful when you want to apply a fixed set of SNP weights to any target file (e.g., for cross-ancestry evaluation).
+
+PRSice writes the selected SNPs and their effect sizes to a `*.snp` file. The relevant columns are `SNP A1 BP P2` (we want columns 1, 2, 4).
+
+```bash
+head ~/Sociogenomics/Results/Trait2_PRSice.snp
+```
+
+Pass it to PLINK:
+
+```bash
+plink --bfile ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
+      --score ~/Sociogenomics/Results/Trait2_PRSice.snp 1 2 4 header \
+      --out ~/Sociogenomics/Results/Trait2_plink_score
+```
+
+The `1 2 4 header` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 4, and there is a header line.
+
+Inspect the output:
+
+```bash
+head ~/Sociogenomics/Results/Trait2_plink_score.profile
+```
+
+The `SCORE` column is the same PGS PRSice computed internally.
 
 ### Exercise 2
 
 1. What is the best $p$-value threshold for Trait2?
 2. How many SNPs are included at that threshold?
 3. What is the $R^2$ of the best PGS?
-4. Look at the barplot. Does $R^2$ rise monotonically with threshold?
+4. Compare the mean and standard deviation of the PGS from PRSice (`*.all_score`) and PLINK (`*.profile`). Are they identical up to scaling?
 
 ---
 
@@ -355,10 +384,12 @@ d$PGS_all  <- scale(d[["Pt_1"]])
 ### Plot the PGS distribution
 
 ```r
-hist(d$PGS_best, breaks = 30, col = "steelblue",
-     main = "PGS distribution (best threshold)",
-     xlab = "Standardised PGS")
+hist(d$PGS_best, breaks = 30, col = "steelblue", border = "white",
+     main = "Distribution of the standardised PGS",
+     xlab = "PGS (z-score)")
 ```
+
+<img src="figures/pgs_hist.png" width="500">
 
 **Question:** Is it approximately normal? This is the Central Limit Theorem at work.
 
@@ -401,9 +432,11 @@ print(results)
 
 barplot(results$delta_r2, names.arg = results$threshold,
         col = "steelblue", border = NA, las = 2,
-        main = "Incremental R2 by p-value threshold",
-        ylab = "Incremental R2")
+        main = "Incremental R² by p-value threshold",
+        ylab = "Incremental R²")
 ```
+
+<img src="figures/r2_barplot.png" width="500">
 
 ### Bootstrap 95% confidence interval
 
