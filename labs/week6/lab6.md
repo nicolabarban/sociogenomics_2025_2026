@@ -20,7 +20,14 @@ The lab covers:
 
 ## 0. Getting started
 
-Open Google Cloud Shell and update the course repository:
+Open Google Cloud Shell. Large data files in the repo are stored via **Git LFS**, which may not be installed by default — install it once per Cloud Shell session:
+
+```bash
+sudo apt-get update && sudo apt-get install -y git-lfs
+git lfs install
+```
+
+Then update the course repository and fetch the LFS files:
 
 ```bash
 cd ~/sociogenomics_2025_2026
