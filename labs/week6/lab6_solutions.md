@@ -46,18 +46,27 @@ wc -l ~/Sociogenomics/Results/Trait2_clumped.clumped
 # 2252 (includes header + blank line)
 ```
 
-### 3. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
+### 3. How many SNPs are in the final score file?
 
 ```bash
-wc -l ~/Sociogenomics/Results/score_5e8.txt
-# 737
+wc -l ~/Sociogenomics/Results/score_all.txt
+# 2249
 ```
 
-**737 independent genome-wide significant SNPs**.
+**2,249 independent SNPs** (one per clump, no $p$-value filtering).
 
-### 4. Does a looser threshold change the PGS distribution?
+### 4. Distribution of the PGS
 
-Yes. At $p < 0.05$ there are $\sim$2,000 SNPs, the PGS variance is larger, and the correlation with `Trait2` is typically higher. This is the classical polygenic signal --- many small effects together explain more variance.
+```r
+d <- read.table("~/Sociogenomics/Results/Trait2_plink_all.profile", header = TRUE)
+summary(d$SCORE)
+#     Min.   1st Qu.    Median     Mean   3rd Qu.    Max.
+# -0.00099  -0.00013  0.00014   0.00014  0.00041   0.00138
+sd(d$SCORE)
+# ~ 0.00041
+```
+
+The PGS is approximately normally distributed (Central Limit Theorem), with mean $\approx 0$ in the European sample after standardisation.
 
 ---
 

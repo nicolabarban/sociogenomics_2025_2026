@@ -304,26 +304,30 @@ awk 'NR>1 && $3 != "" {print $3}' \
 wc -l ~/Sociogenomics/Results/clumped_snps.txt
 ```
 
-### Step 2. Build the score file at a given threshold
+### Step 2. Build the score file
 
-The score file needs three columns: `SNP A1 BETA`. We filter the summary statistics by both the clumped list **and** a $p$-value threshold. Start with genome-wide significance ($p < 5 \times 10^{-8}$):
+The score file needs three columns: `SNP A1 BETA`. We filter the summary statistics by the clumped list using `grep`:
 
 ```bash
-awk 'NR==FNR {snps[$1]=1; next} FNR==1 {next} ($1 in snps) && $7 < 5e-8 {print $1, $2, $5}' \
-    ~/Sociogenomics/Results/clumped_snps.txt \
-    ~/Sociogenomics/Data/Trait2_clean.ma \
-    > ~/Sociogenomics/Results/score_5e8.txt
+grep -Fwf ~/Sociogenomics/Results/clumped_snps.txt \
+         ~/Sociogenomics/Data/Trait2_clean.ma \
+  | awk '{print $1, $2, $5}' \
+  > ~/Sociogenomics/Results/score_all.txt
 
-wc -l ~/Sociogenomics/Results/score_5e8.txt
-head ~/Sociogenomics/Results/score_5e8.txt
+wc -l ~/Sociogenomics/Results/score_all.txt
+head ~/Sociogenomics/Results/score_all.txt
 ```
+
+`grep -Fwf` keeps only the rows of `Trait2_clean.ma` whose SNP ID (a whole word) appears in `clumped_snps.txt`. Then `awk` extracts the three columns we need.
+
+> **Note:** We use **all** clumped SNPs, not just the genome-wide significant ones. For polygenic traits, including sub-significant SNPs usually improves prediction.
 
 ### Step 3. Compute the PGS with PLINK `--score`
 
 ```bash
 plink --bfile 1kg_hm3_QC_CEU \
-      --score ~/Sociogenomics/Results/score_5e8.txt 1 2 3 \
-      --out ~/Sociogenomics/Results/Trait2_plink_5e8
+      --score ~/Sociogenomics/Results/score_all.txt 1 2 3 \
+      --out ~/Sociogenomics/Results/Trait2_plink_all
 ```
 
 The `1 2 3` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 3.
@@ -331,7 +335,7 @@ The `1 2 3` tells PLINK: SNP ID is column 1, effect allele is column 2, effect s
 Inspect:
 
 ```bash
-head ~/Sociogenomics/Results/Trait2_plink_5e8.profile
+head ~/Sociogenomics/Results/Trait2_plink_all.profile
 ```
 
 The `SCORE` column is the PGS for each individual.
@@ -340,8 +344,8 @@ The `SCORE` column is the PGS for each individual.
 
 1. How many ambiguous SNPs (A/T or C/G) were removed from `Trait2.ma`?
 2. How many clumps did PLINK produce from the cleaned summary stats?
-3. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
-4. Repeat the `--score` step at a looser threshold (e.g., $p < 0.05$). Does the PGS distribution change? Does the correlation with the phenotype improve?
+3. How many SNPs are in your final score file?
+4. What is the distribution of the PGS across individuals (mean, SD, range)?
 
 ---
 
@@ -569,11 +573,11 @@ Compute the PGS on all individuals (not just Europeans) using the score file fro
 
 ```bash
 plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
-      --score ~/Sociogenomics/Results/score_5e8.txt 1 2 3 \
+      --score ~/Sociogenomics/Results/score_all.txt 1 2 3 \
       --out ~/Sociogenomics/Results/Trait2_pgs_all_pops
 ```
 
-> **Note:** We reuse the `score_5e8.txt` file we built manually in Part III.
+> **Note:** We reuse the `score_all.txt` file we built in Part IV (all clumped SNPs, no $p$-value threshold).
 
 In R, load the scores, merge with phenotype + population info, and compute $R^2$ by super-population:
 
