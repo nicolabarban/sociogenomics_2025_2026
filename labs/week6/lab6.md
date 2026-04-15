@@ -195,6 +195,23 @@ wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.bim
 wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.fam
 ```
 
+### Align SNP IDs with the summary statistics
+
+Our target `.bim` file uses **rsIDs** (e.g., `rs1048488`), but the `Trait2.ma` summary statistics use **chromosome:position** IDs (e.g., `20:61795`). PRSice cannot match them.
+
+We rename the SNP IDs in the `.bim` file to the `CHR:POS` format with a one-line `awk`:
+
+```bash
+cd ~/Sociogenomics/Data
+awk 'BEGIN{OFS="\t"} {$2=$1":"$4; print}' 1kg_hm3_QC_CEU.bim > 1kg_hm3_QC_CEU.bim.new
+mv 1kg_hm3_QC_CEU.bim.new 1kg_hm3_QC_CEU.bim
+head 1kg_hm3_QC_CEU.bim
+```
+
+The second column is now `chr:pos` and will match the summary statistics.
+
+> **Note:** This kind of ID harmonisation is a routine step in PRS analyses --- summary stats from different sources use different SNP naming conventions.
+
 ---
 
 ## Part III. PGS with PRSice-2
@@ -282,40 +299,12 @@ PRSice automatically produces a barplot of the incremental $R^2$ at each tested 
 
 The best threshold is highlighted in the darker colour. For `Trait2` in our data, the best threshold is around $p < 0.05$ with $R^2 \approx 12\%$.
 
-### High-resolution scan
-
-Run PRSice again without `--fastscore` to scan many thresholds:
-
-```bash
-Rscript PRSice.R --dir . \
-    --prsice ./PRSice_linux \
-    --base ~/Sociogenomics/Data/Trait2.ma \
-    --target ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
-    --snp SNP \
-    --A1 A1 \
-    --A2 A2 \
-    --stat BETA \
-    --pvalue P \
-    --beta \
-    --pheno ~/Sociogenomics/Data/1kg.Trait2.phen \
-    --binary-target F \
-    --interval 5e-05 \
-    --lower 0.0001 \
-    --out ~/Sociogenomics/Results/Trait2_PRSice_hires
-```
-
-This scans thresholds from $p = 10^{-4}$ upward in steps of $5\times10^{-5}$ and produces a continuous plot:
-
-![PRSice high-resolution plot: R² as a function of the p-value threshold](figures/PRSice_highres.png)
-
-The peak identifies the optimal threshold for this trait and dataset.
-
 ### Exercise 2
 
 1. What is the best $p$-value threshold for Trait2?
 2. How many SNPs are included at that threshold?
 3. What is the $R^2$ of the best PGS?
-4. Look at the barplot and high-res plot. Does $R^2$ rise monotonically with threshold?
+4. Look at the barplot. Does $R^2$ rise monotonically with threshold?
 
 ---
 
