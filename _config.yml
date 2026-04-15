@@ -1,6 +1,8 @@
 title: Sociogenomics 2025/2026
 description: Lab materials for the Sociogenomics course — University of Bologna
-theme: jekyll-theme-minimal
+
+# No Jekyll theme — full-width layout defined in _layouts/default.html
+# MathJax support loaded via _includes/head-custom.html
 
 # Markdown settings with MathJax support
 markdown: kramdown
