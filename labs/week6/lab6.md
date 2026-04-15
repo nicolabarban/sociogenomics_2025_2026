@@ -442,6 +442,8 @@ The best threshold is highlighted in the darker colour.
 
 Now we move to R for detailed analysis with covariates and bootstrap confidence intervals.
 
+> **Note:** You can run all the R code below either **inside Google Cloud Shell** (launch `R` from the terminal) **or in RStudio on your own laptop** --- whichever you prefer. If you use RStudio locally, download the `*.profile`, `*.eigenvec`, `*.phen` and `*.all_score` files from Cloud Shell first (e.g., via the *Download* button in Cloud Shell or `scp`) and adjust the file paths accordingly.
+
 ### Load the PGS scores
 
 ```r
