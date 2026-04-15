@@ -27,11 +27,22 @@ sudo apt-get update && sudo apt-get install -y git-lfs
 git lfs install
 ```
 
-Then update the course repository and fetch the LFS files:
+Clone the course repository (or refresh it if already present):
+
+```bash
+cd ~
+if [ -d ~/sociogenomics_2025_2026/.git ]; then
+  cd ~/sociogenomics_2025_2026 && git pull
+else
+  rm -rf ~/sociogenomics_2025_2026
+  git clone https://github.com/nicolabarban/sociogenomics_2025_2026.git
+fi
+```
+
+Then enter the repository and fetch the LFS files:
 
 ```bash
 cd ~/sociogenomics_2025_2026
-git pull
 git lfs pull
 ```
 
