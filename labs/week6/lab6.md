@@ -72,6 +72,8 @@ cp ~/sociogenomics_2025_2026/data/1kg_hm3.* \
    ~/sociogenomics_2025_2026/data/1kg.Trait2.phen \
    ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt \
    ~/sociogenomics_2025_2026/data/EUR.id \
+   ~/sociogenomics_2025_2026/data/BMI_pheno.txt \
+   ~/sociogenomics_2025_2026/data/score_rs9930506.txt \
    ~/Sociogenomics/Data/
 ```
 
@@ -195,37 +197,160 @@ wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.bim
 wc -l ~/Sociogenomics/Data/1kg_hm3_QC_CEU.fam
 ```
 
-### Align SNP IDs with the summary statistics
+---
 
-Our target `.bim` file uses **rsIDs** (e.g., `rs1048488`), but the `Trait2.ma` summary statistics use **chromosome:position** IDs (e.g., `20:61795`). PRSice cannot match them.
+## Part III. A ``monogenic'' score: warm-up with FTO
 
-We rename the SNP IDs in the `.bim` file to the `CHR:POS` format with a one-line `awk`:
+Before building a full polygenic score, let's start from the simplest possible case: **a score based on a single SNP**.
+
+We use **rs9930506** in the *FTO* gene --- the first and most replicated obesity-associated variant (Frayling et al.\ 2007, *Science*). Each copy of the A allele increases BMI by $\sim$0.4 kg/m² in adults of European ancestry.
+
+Inspect the pre-made score file:
 
 ```bash
-cd ~/Sociogenomics/Data
-awk 'BEGIN{OFS="\t"} {$2=$1":"$4; print}' 1kg_hm3_QC_CEU.bim > 1kg_hm3_QC_CEU.bim.new
-mv 1kg_hm3_QC_CEU.bim.new 1kg_hm3_QC_CEU.bim
-head 1kg_hm3_QC_CEU.bim
+cat ~/Sociogenomics/Data/score_rs9930506.txt
 ```
 
-The second column is now `chr:pos` and will match the summary statistics.
+It has three columns: `SNP A1 BETA`. Here just one line:
 
-> **Note:** This kind of ID harmonisation is a routine step in PRS analyses --- summary stats from different sources use different SNP naming conventions.
+```
+rs9930506 A 0.4
+```
+
+Compute the ``monogenic'' score in PLINK:
+
+```bash
+plink --bfile ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
+      --score ~/Sociogenomics/Data/score_rs9930506.txt 1 2 3 \
+      --pheno ~/Sociogenomics/Data/BMI_pheno.txt \
+      --out ~/Sociogenomics/Results/FTOscore
+```
+
+Inspect:
+
+```bash
+head ~/Sociogenomics/Results/FTOscore.profile
+```
+
+The `SCORE` column takes three values: 0, 0.2, or 0.4 --- one number per `A` allele copy, multiplied by the effect size (0.4).
+
+Check the association with BMI in R:
+
+```r
+d <- read.table("~/Sociogenomics/Results/FTOscore.profile", header = TRUE)
+mod <- lm(PHENO ~ SCORE, data = d)
+summary(mod)
+```
+
+**Question:** Is the effect of rs9930506 on BMI in the expected direction? Is it statistically significant in this sample? Why is the $R^2$ so small?
+
+> **Key idea:** a monogenic score is a special case of a polygenic score with only one SNP. This is why individual GWAS hits have almost no predictive power --- we need thousands of SNPs to explain meaningful variance.
+
+### Exercise 1
+
+1. What is the slope of the regression `BMI ~ SCORE`? Is it close to the published 0.4 kg/m² per A allele?
+2. What is the $R^2$? Why is it so small even though the effect is real?
+3. Repeat the analysis excluding `SCORE == 0` (non-carriers). How does the comparison between 1 and 2 A alleles change?
 
 ---
 
-## Part III. PGS with PRSice-2
+## Part IV. The C+T method step by step with PLINK
 
-### The PRSice command
+Before jumping to PRSice, let us see what the **Clumping + Thresholding** (C+T) method does under the hood. It has two steps:
 
-PRSice-2 automates the entire C+T pipeline in a single command:
+1. **Clumping:** keep only one SNP per LD block (the most significant one)
+2. **Thresholding + Scoring:** pick a $p$-value cut-off, then compute the weighted sum of alleles
 
-1. Reads the GWAS summary statistics
-2. Aligns SNPs between base and target
-3. Clumps (LD $r^2 < 0.1$ in 250 kb windows)
-4. Computes PGS at multiple $p$-value thresholds
-5. Runs regression and reports $R^2$
-6. Produces publication-ready plots
+### Step 1. Clump the summary statistics with PLINK
+
+```bash
+cd ~/Sociogenomics/Data
+
+plink --bfile 1kg_hm3_QC_CEU \
+      --clump Trait2.ma \
+      --clump-p1 1 \
+      --clump-r2 0.1 \
+      --clump-kb 250 \
+      --clump-snp-field SNP \
+      --clump-field P \
+      --out ~/Sociogenomics/Results/Trait2_clumped
+```
+
+Flags:
+
+| Flag | Meaning |
+|---|---|
+| `--clump-p1 1` | keep SNPs at all $p$-values (we apply the threshold later) |
+| `--clump-r2 0.1` | remove SNPs with $r^2 > 0.1$ with the top SNP |
+| `--clump-kb 250` | LD window of 250 kb |
+| `--clump-snp-field / --clump-field` | column names in the base file |
+
+Inspect the output:
+
+```bash
+wc -l ~/Sociogenomics/Results/Trait2_clumped.clumped
+head ~/Sociogenomics/Results/Trait2_clumped.clumped
+```
+
+Extract the list of independent (clumped) SNPs:
+
+```bash
+awk 'NR>1 && $3 != "" {print $3}' \
+    ~/Sociogenomics/Results/Trait2_clumped.clumped \
+    > ~/Sociogenomics/Results/clumped_snps.txt
+
+wc -l ~/Sociogenomics/Results/clumped_snps.txt
+```
+
+### Step 2. Build the score file at a given threshold
+
+The score file needs three columns: `SNP A1 BETA`. We filter the summary statistics by both the clumped list **and** a $p$-value threshold. Start with genome-wide significance ($p < 5 \times 10^{-8}$):
+
+```bash
+awk 'NR==FNR {snps[$1]=1; next} FNR==1 {next} ($1 in snps) && $7 < 5e-8 {print $1, $2, $5}' \
+    ~/Sociogenomics/Results/clumped_snps.txt \
+    ~/Sociogenomics/Data/Trait2.ma \
+    > ~/Sociogenomics/Results/score_5e8.txt
+
+wc -l ~/Sociogenomics/Results/score_5e8.txt
+head ~/Sociogenomics/Results/score_5e8.txt
+```
+
+### Step 3. Compute the PGS with PLINK `--score`
+
+```bash
+plink --bfile 1kg_hm3_QC_CEU \
+      --score ~/Sociogenomics/Results/score_5e8.txt 1 2 3 \
+      --out ~/Sociogenomics/Results/Trait2_plink_5e8
+```
+
+The `1 2 3` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 3.
+
+Inspect:
+
+```bash
+head ~/Sociogenomics/Results/Trait2_plink_5e8.profile
+```
+
+The `SCORE` column is the PGS for each individual.
+
+### Exercise 2
+
+1. How many clumps did PLINK produce?
+2. How many SNPs pass $p < 5 \times 10^{-8}$ among the clumped SNPs?
+3. Repeat the `--score` step at a looser threshold (e.g., $p < 0.05$). Does the PGS distribution change? Does the correlation with the phenotype improve?
+
+---
+
+## Part V. PGS with PRSice-2 (automating C+T)
+
+PRSice-2 automates the full C+T pipeline across many thresholds in one command:
+
+1. Aligns SNPs between base and target
+2. Clumps (LD $r^2 < 0.1$ in 250 kb windows)
+3. Computes PGS at multiple $p$-value thresholds
+4. Runs regression and reports $R^2$
+5. Produces publication-ready plots
 
 Run PRSice on Trait2:
 
@@ -263,11 +388,10 @@ Rscript PRSice.R --dir . \
 | `--binary-target F` | Continuous phenotype |
 | `--bar-levels` | $p$-value thresholds to test |
 | `--fastscore` | Only compute at the specified thresholds (faster) |
+| `--all-score` | Also save PGS for each individual at each threshold |
 | `--out` | Output prefix |
 
 ### Inspect the output
-
-PRSice produces several files:
 
 ```bash
 ls ~/Sociogenomics/Results/Trait2_PRSice*
@@ -298,69 +422,16 @@ PRSice automatically produces a barplot of the incremental $R^2$ at each tested 
 
 The best threshold is highlighted in the darker colour.
 
----
-
-### Compute the same PGS with PLINK `--score`
-
-PRSice is a convenience wrapper. The actual scoring step is just a weighted sum of allele counts, which PLINK can do directly with `--score`. This is useful when you want to apply a fixed set of SNP weights to any target file (e.g., for cross-ancestry evaluation).
-
-First, re-run PRSice with `--print-snp` so that it writes the list of clumped SNPs to a `*.snp` file:
-
-```bash
-Rscript PRSice.R --dir . \
-    --prsice ./PRSice_linux \
-    --base ~/Sociogenomics/Data/Trait2.ma \
-    --target ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
-    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
-    --pheno ~/Sociogenomics/Data/1kg.Trait2.phen \
-    --binary-target F \
-    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 \
-    --fastscore --all-score --print-snp \
-    --out ~/Sociogenomics/Results/Trait2_PRSice
-```
-
-The `*.snp` file lists the SNPs that survived clumping (CHR, SNP, BP, P, Base) but does **not** contain the effect allele or the effect size. We build the score file by joining it with `Trait2.ma`:
-
-```bash
-awk 'NR==FNR {snps[$2]=1; next} $1 in snps {print $1, $2, $5}' \
-    ~/Sociogenomics/Results/Trait2_PRSice.snp \
-    ~/Sociogenomics/Data/Trait2.ma \
-    > ~/Sociogenomics/Results/Trait2_score.txt
-
-head ~/Sociogenomics/Results/Trait2_score.txt
-wc -l ~/Sociogenomics/Results/Trait2_score.txt
-```
-
-The result is a 3-column file: `SNP A1 BETA`.
-
-Run PLINK `--score`:
-
-```bash
-plink --bfile ~/Sociogenomics/Data/1kg_hm3_QC_CEU \
-      --score ~/Sociogenomics/Results/Trait2_score.txt 1 2 3 header \
-      --out ~/Sociogenomics/Results/Trait2_plink_score
-```
-
-The `1 2 3 header` tells PLINK: SNP ID is column 1, effect allele is column 2, effect size is column 3, and there is a header line.
-
-Inspect the output:
-
-```bash
-head ~/Sociogenomics/Results/Trait2_plink_score.profile
-```
-
-The `SCORE` column is the PGS. It is proportional to what PRSice computed internally, modulo scaling by the number of SNPs.
-
-### Exercise 2
+### Exercise 3
 
 1. What is the best $p$-value threshold for Trait2?
 2. How many SNPs are included at that threshold?
 3. What is the $R^2$ of the best PGS?
-4. Compare the mean and standard deviation of the PGS from PRSice (`*.all_score`) and PLINK (`*.profile`). Are they identical up to scaling?
+4. Compare the PGS from PRSice (`*.all_score`, column `Pt_5e.08`) with the PGS from the manual PLINK `--score` run at the same threshold. Are they identical up to scaling?
 
 ---
 
-## Part IV. Analyse the PGS in R
+## Part VI. Analyse the PGS in R
 
 Now we move to R for detailed analysis with covariates and bootstrap confidence intervals.
 
@@ -480,7 +551,7 @@ results_boot <- boot(data = d, statistic = rsq_fn, R = 1000)
 boot.ci(results_boot, type = "norm")
 ```
 
-### Exercise 3
+### Exercise 4
 
 1. What is the incremental $R^2$ of the best PGS?
 2. What is the 95% bootstrap CI?
@@ -489,17 +560,17 @@ boot.ci(results_boot, type = "norm")
 
 ---
 
-## Part V. Cross-ancestry portability (optional)
+## Part VII. Cross-ancestry portability (optional)
 
-Compute the PGS on all 2,504 individuals (not just Europeans):
+Compute the PGS on all individuals (not just Europeans) using the score file from Part III:
 
 ```bash
 plink --bfile ~/Sociogenomics/Data/1kg_hm3 \
-      --score ~/Sociogenomics/Results/Trait2_score.txt 1 2 3 header \
+      --score ~/Sociogenomics/Results/score_5e8.txt 1 2 3 \
       --out ~/Sociogenomics/Results/Trait2_pgs_all_pops
 ```
 
-> **Note:** We reuse the `Trait2_score.txt` file built in Part III (clumped SNPs with effect allele and $\hat\beta$).
+> **Note:** We reuse the `score_5e8.txt` file we built manually in Part III.
 
 In R, load the scores, merge with phenotype + population info, and compute $R^2$ by super-population:
 
@@ -526,7 +597,7 @@ for (p in c("EUR", "EAS", "SAS", "AFR", "AMR")) {
 
 **Question:** In which population is the PGS most predictive? Least predictive? Why?
 
-### Exercise 4 (optional)
+### Exercise 5 (optional)
 
 1. Boxplot of PGS values by super-population --- any systematic shift?
 2. Why is the PGS less accurate in African-ancestry populations?
