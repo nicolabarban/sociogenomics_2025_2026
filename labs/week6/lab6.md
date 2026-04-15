@@ -40,9 +40,7 @@ mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts ~/
 All files needed for this lab --- the 1000 Genomes HapMap3 genotypes, summary statistics, phenotype, and population info --- are in the course repository under `data/` (large files are handled via Git LFS, so make sure you ran `git lfs pull` above). Copy them into your working data directory in one go:
 
 ```bash
-cp ~/sociogenomics_2025_2026/data/1kg_hm3.bed \
-   ~/sociogenomics_2025_2026/data/1kg_hm3.bim \
-   ~/sociogenomics_2025_2026/data/1kg_hm3.fam \
+cp ~/sociogenomics_2025_2026/data/1kg_hm3.* \
    ~/sociogenomics_2025_2026/data/Trait2.ma \
    ~/sociogenomics_2025_2026/data/1kg.Trait2.phen \
    ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt \
