@@ -130,6 +130,12 @@ plink --version
 
 ## Part I. Explore the data
 
+Move into the data directory so the file names below work without typing full paths:
+
+```bash
+cd ~/Sociogenomics/Data
+```
+
 ### Inspect the base (summary statistics) file
 
 ```bash
