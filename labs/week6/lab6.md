@@ -37,10 +37,13 @@ mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts ~/
 
 ### Copy all lab data from the course repo
 
-All files needed for this lab live in the repo under `data/`. Copy them into your working data directory in one go:
+All files needed for this lab --- the 1000 Genomes HapMap3 genotypes, summary statistics, phenotype, and population info --- are in the course repository under `data/` (large files are handled via Git LFS, so make sure you ran `git lfs pull` above). Copy them into your working data directory in one go:
 
 ```bash
-cp ~/sociogenomics_2025_2026/data/Trait2.ma \
+cp ~/sociogenomics_2025_2026/data/1kg_hm3.bed \
+   ~/sociogenomics_2025_2026/data/1kg_hm3.bim \
+   ~/sociogenomics_2025_2026/data/1kg_hm3.fam \
+   ~/sociogenomics_2025_2026/data/Trait2.ma \
    ~/sociogenomics_2025_2026/data/1kg.Trait2.phen \
    ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt \
    ~/sociogenomics_2025_2026/data/EUR.id \
@@ -50,16 +53,11 @@ cp ~/sociogenomics_2025_2026/data/Trait2.ma \
 Check they are there:
 
 ```bash
-ls ~/Sociogenomics/Data/Trait2.ma ~/Sociogenomics/Data/1kg.Trait2.phen \
-   ~/Sociogenomics/Data/EUR.id ~/Sociogenomics/Data/1kg-sample-2504-phased.txt
-```
-
-### `1kg_hm3` genotype data from Week 5
-
-We already used `1kg_hm3` in Week 5 — the files should still be in `~/Sociogenomics/Data/`:
-
-```bash
-ls ~/Sociogenomics/Data/1kg_hm3.*
+ls ~/Sociogenomics/Data/1kg_hm3.* \
+   ~/Sociogenomics/Data/Trait2.ma \
+   ~/Sociogenomics/Data/1kg.Trait2.phen \
+   ~/Sociogenomics/Data/EUR.id \
+   ~/Sociogenomics/Data/1kg-sample-2504-phased.txt
 ```
 
 > **Note:** The summary statistics come from a GWAS of a simulated polygenic trait on $\sim$350K UK Biobank European participants. The phenotype file has 2,504 simulated values aligned to the 1000 Genomes individuals.
