@@ -37,11 +37,11 @@ mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts
 Copy the data we need from the course repo:
 
 ```bash
-cp ~/sociogenomics_2025_2026/data/week7/bpdata.csv ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/bpdata.csv ~/Sociogenomics/Data/
 
 # If not already done in Lab 6, copy also the phenotype and population files
-cp ~/sociogenomics_2025_2026/data/week6/1kg.Trait2.phen ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/week6/1kg-sample-2504-phased.txt ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/1kg.Trait2.phen ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt ~/Sociogenomics/Data/
 ```
 
 > **Note:** Most of this lab is in R. You can use Google Colab (R runtime) or RStudio.

@@ -35,35 +35,16 @@ cd $HOME
 mkdir -p ~/Sociogenomics/Data ~/Sociogenomics/Results ~/Sociogenomics/Scripts ~/Sociogenomics/Software
 ```
 
-### Reuse the `1kg_hm3` genotype data from Week 5
+### Copy all lab data from the course repo
 
-We already used `1kg_hm3` in Week 5. If you still have the files in `~/Sociogenomics/Data/`, you can skip re-downloading the genotype data.
-
-Check whether they are there:
+All files needed for this lab live in the repo under `data/`. Copy them into your working data directory in one go:
 
 ```bash
-ls ~/Sociogenomics/Data/1kg_hm3.*
-```
-
-If the files are missing, re-download them (same Dropbox link as Week 3):
-
-```bash
-cd $HOME
-wget -O week3.zip "https://www.dropbox.com/scl/fi/kvsdtvsl3m4gl19omle1y/week3.zip?rlkey=3fyj402e77jsvo97iwz8ke7sc&dl=1"
-unzip -o week3.zip
-mv week3/1kg_hm3.* ~/Sociogenomics/Data/
-rm -r week3 week3.zip __MACOSX 2>/dev/null
-```
-
-### Copy the phenotype and summary statistics from the course repo
-
-The files we need --- summary statistics, phenotype, population info --- are now in the course repository under `data/week6/`:
-
-```bash
-cp ~/sociogenomics_2025_2026/data/week6/Trait2.ma ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/week6/1kg.Trait2.phen ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/week6/1kg-sample-2504-phased.txt ~/Sociogenomics/Data/
-cp ~/sociogenomics_2025_2026/data/week6/EUR.id ~/Sociogenomics/Data/
+cp ~/sociogenomics_2025_2026/data/Trait2.ma \
+   ~/sociogenomics_2025_2026/data/1kg.Trait2.phen \
+   ~/sociogenomics_2025_2026/data/1kg-sample-2504-phased.txt \
+   ~/sociogenomics_2025_2026/data/EUR.id \
+   ~/Sociogenomics/Data/
 ```
 
 Check they are there:
@@ -71,6 +52,14 @@ Check they are there:
 ```bash
 ls ~/Sociogenomics/Data/Trait2.ma ~/Sociogenomics/Data/1kg.Trait2.phen \
    ~/Sociogenomics/Data/EUR.id ~/Sociogenomics/Data/1kg-sample-2504-phased.txt
+```
+
+### `1kg_hm3` genotype data from Week 5
+
+We already used `1kg_hm3` in Week 5 — the files should still be in `~/Sociogenomics/Data/`:
+
+```bash
+ls ~/Sociogenomics/Data/1kg_hm3.*
 ```
 
 > **Note:** The summary statistics come from a GWAS of a simulated polygenic trait on $\sim$350K UK Biobank European participants. The phenotype file has 2,504 simulated values aligned to the 1000 Genomes individuals.
