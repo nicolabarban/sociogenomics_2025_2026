@@ -445,8 +445,9 @@ Now we move to R for detailed analysis with covariates and bootstrap confidence 
 > **Note:** You can run all the R code below in several environments:
 >
 > * **Google Cloud Shell** (launch `R` from the terminal)
-> * **RStudio on your own laptop** (download the `*.profile`, `*.eigenvec`, `*.phen` and `*.all_score` files first and adjust paths)
-> * **[Google Colab](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week6/lab6_colab.ipynb)** — a ready-made notebook that downloads the pre-computed PGS outputs from the course repository and runs the full R analysis.
+> * **RStudio on your own laptop** — download [`lab6.R`](https://raw.githubusercontent.com/nicolabarban/sociogenomics_2025_2026/gh_pages/labs/week6/lab6.R), open it and **Source** the file; it fetches all inputs from the course repo automatically.
+> * **[Posit Cloud](https://posit.cloud/)** (free RStudio in the browser): *New Project → New Project from Git Repository* → paste `https://github.com/nicolabarban/sociogenomics_2025_2026.git` → open `labs/week6/lab6.R`.
+> * **[Google Colab](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week6/lab6_colab.ipynb)** — a ready-made R notebook.
 
 ### Load the PGS scores
 
