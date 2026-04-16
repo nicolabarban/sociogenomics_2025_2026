@@ -425,7 +425,7 @@ cat ~/Sociogenomics/Results/Trait2_PRSice.summary
 
 PRSice automatically produces a barplot of the incremental $R^2$ at each tested threshold:
 
-<img src="figures/PRSice_barplot.png" width="500">
+<img src="../figures/PRSice_barplot.png" width="500">
 
 The best threshold is highlighted in the darker colour.
 
@@ -497,7 +497,7 @@ hist(d$PGS_best, breaks = 30, col = "steelblue", border = "white",
      xlab = "PGS (z-score)")
 ```
 
-<img src="figures/pgs_hist.png" width="500">
+<img src="../figures/pgs_hist.png" width="500">
 
 **Question:** Is it approximately normal? This is the Central Limit Theorem at work.
 
@@ -544,7 +544,7 @@ barplot(results$delta_r2, names.arg = results$threshold,
         ylab = "Incremental R²")
 ```
 
-<img src="figures/r2_barplot.png" width="500">
+<img src="../figures/r2_barplot.png" width="500">
 
 ### Bootstrap 95% confidence interval
 
