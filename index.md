@@ -45,6 +45,9 @@
 
 * [Lab 6 — PGS with PRSice-2](labs/week6/lab6.md)
 * [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week6/lab6_colab.ipynb)
+* [R script for RStudio / Posit Cloud](labs/week6/lab6.R)
+* [RStudio project file (`lab6.Rproj`)](labs/week6/lab6.Rproj)
+* [Pre-computed results bundle (`lab6_results.zip`)](labs/week6/lab6_results.zip)
 * [Solutions](labs/week6/lab6_solutions.md)
 
 <!--
