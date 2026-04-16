@@ -148,12 +148,12 @@ head Trait2.ma
 wc -l Trait2.ma
 ```
 
-The `.ma` format has columns: `SNP A1 A2 AF1 BETA SE P N`. This is the **base file** for PRSice.
+The base file has columns: `CHR SNP A1 A2 AF1 BETA SE P N`. This is the summary-statistics file for PRSice.
 
 **Question:** How many SNPs are in the summary statistics? How many reach genome-wide significance ($p < 5 \times 10^{-8}$)?
 
 ```bash
-awk 'NR>1 && $7 < 5e-8' Trait2.ma | wc -l
+awk 'NR>1 && $8 < 5e-8' Trait2.ma | wc -l
 ```
 
 ### Inspect the target genotype data
@@ -255,7 +255,7 @@ A one-line `awk` is enough:
 ```bash
 cd ~/Sociogenomics/Data
 
-awk 'NR==1 || !($2$3=="AT" || $2$3=="TA" || $2$3=="CG" || $2$3=="GC")' \
+awk 'NR==1 || !($3$4=="AT" || $3$4=="TA" || $3$4=="CG" || $3$4=="GC")' \
     Trait2.ma > Trait2_clean.ma
 
 wc -l Trait2.ma Trait2_clean.ma
@@ -311,7 +311,7 @@ The score file needs three columns: `SNP A1 BETA`. We filter the summary statist
 ```bash
 grep -Fwf ~/Sociogenomics/Results/clumped_snps.txt \
          ~/Sociogenomics/Data/Trait2_clean.ma \
-  | awk '{print $1, $2, $5}' \
+  | awk '{print $2, $3, $6}' \
   > ~/Sociogenomics/Results/score_all.txt
 
 wc -l ~/Sociogenomics/Results/score_all.txt
