@@ -44,6 +44,7 @@
 ## Week 6 — Polygenic Scores
 
 * [Lab 6 — PGS with PRSice-2](labs/week6/lab6.md)
+* [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week6/lab6_colab.ipynb)
 * [Solutions](labs/week6/lab6_solutions.md)
 
 <!--

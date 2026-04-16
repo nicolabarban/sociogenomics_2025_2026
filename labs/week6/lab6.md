@@ -442,7 +442,11 @@ The best threshold is highlighted in the darker colour.
 
 Now we move to R for detailed analysis with covariates and bootstrap confidence intervals.
 
-> **Note:** You can run all the R code below either **inside Google Cloud Shell** (launch `R` from the terminal) **or in RStudio on your own laptop** --- whichever you prefer. If you use RStudio locally, download the `*.profile`, `*.eigenvec`, `*.phen` and `*.all_score` files from Cloud Shell first (e.g., via the *Download* button in Cloud Shell or `scp`) and adjust the file paths accordingly.
+> **Note:** You can run all the R code below in several environments:
+>
+> * **Google Cloud Shell** (launch `R` from the terminal)
+> * **RStudio on your own laptop** (download the `*.profile`, `*.eigenvec`, `*.phen` and `*.all_score` files first and adjust paths)
+> * **[Google Colab](https://colab.research.google.com/github/nicolabarban/sociogenomics_2025_2026/blob/gh_pages/labs/week6/lab6_colab.ipynb)** — a ready-made notebook that downloads the pre-computed PGS outputs from the course repository and runs the full R analysis.
 
 ### Load the PGS scores
 
