@@ -212,7 +212,6 @@ ls Results/Trait2_PRSice*
 | `*.summary` | Best threshold and $R^2$ |
 | `*.prsice` | $R^2$ at each threshold |
 | `*.all_score` | PGS for each individual at each threshold |
-| `*.snp` | Selected SNPs with weights |
 | `*_BARPLOT_*.png` | Barplot of $R^2$ by threshold |
 
 ### Exercise 1
@@ -313,30 +312,7 @@ Rscript PRSice.R --dir . --prsice ./PRSice_linux \
 Now `*.summary` reports $R^2$ as the **incremental** $R^2$ over the
 covariates-only model. Compare it with the raw $R^2$ from the baseline run.
 
-### D. Scoring method: average vs sum
-
-`--score` controls how per-SNP contributions are aggregated:
-
-| Value | Formula |
-|-------|---------|
-| `avg` (default) | $\mathrm{PGS}_i = \tfrac{1}{M}\sum_j \beta_j\,x_{ij}$ |
-| `sum` | $\mathrm{PGS}_i = \sum_j \beta_j\,x_{ij}$ |
-| `std` | Standardises genotypes before summing |
-
-```bash
-Rscript PRSice.R --dir . --prsice ./PRSice_linux \
-    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
-    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
-    --pheno Data/1kg.Trait2.phen --binary-target F \
-    --score sum \
-    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
-    --out Results/Trait2_PRSice_sum
-```
-
-$R^2$ should be **identical** to the default run — only the scale of the PGS
-changes. Plot both PGS distributions in R to confirm.
-
-### E. Decile / quantile plot
+### D. Decile / quantile plot
 
 `--quantile 10` produces a "decile plot": the sample is split into 10 equal
 bins of PGS, and the mean phenotype is plotted per bin. It is the classic way
@@ -353,40 +329,6 @@ Rscript PRSice.R --dir . --prsice ./PRSice_linux \
 ```
 
 Look for `*_QUANTILES_*.png`.
-
-### F. Restrict the base by MAF or INFO
-
-Very rare or poorly imputed SNPs are the first suspects when a PGS looks
-noisy. Filter them out at the source:
-
-```bash
-Rscript PRSice.R --dir . --prsice ./PRSice_linux \
-    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
-    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
-    --maf MAF,0.05 \
-    --pheno Data/1kg.Trait2.phen --binary-target F \
-    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
-    --out Results/Trait2_PRSice_maf05
-```
-
-(Only works if `Trait2.ma` has a `MAF` column — otherwise PRSice will tell
-you.) Replace with `--info INFO,0.8` if the base has imputation quality.
-
-### Exercise 1-bis
-
-Run at least **two** of the variants above (suggested: high-res scan + strict
-vs loose clumping) and fill in the comparison table:
-
-| Run | Best $P_T$ | # SNPs | Best $R^2$ |
-|-----|------------|--------|------------|
-| Baseline (`Trait2_PRSice`) | | | |
-| High-res (`_hires`) | | | |
-| Strict clumping (`_strict`) | | | |
-| Loose clumping (`_loose`) | | | |
-| With covariates (`_cov`) | | | |
-
-Write 2-3 sentences on what moves the $R^2$ the most: threshold, clumping, or
-covariates?
 
 ---
 
@@ -457,28 +399,10 @@ barplot(results$delta_r2, names.arg = results$threshold,
         ylab = expression(Delta ~ R^2))
 ```
 
-### 3.5 Bootstrap 95% CI
-
-```r
-library(boot)
-set.seed(2026)
-
-boot_fn <- function(data, idx) {
-  ds <- data[idx, ]
-  m0 <- lm(Trait2 ~ PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10, data = ds)
-  m1 <- lm(Trait2 ~ PGS+PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10, data = ds)
-  summary(m1)$r.squared - summary(m0)$r.squared
-}
-
-b <- boot(d, boot_fn, R = 1000)
-boot.ci(b, type = "norm")
-```
-
 ### Exercise 2
 
 1. What is the incremental $R^2$ of the best PGS?
-2. What is the 95% bootstrap CI?
-3. Which threshold is optimal and why?
+2. Which threshold is optimal and why?
 
 ---
 
@@ -527,7 +451,6 @@ boxplot(PGS ~ super_pop, data = da,
 
 1. In which population is the PGS most predictive? Least?
 2. Why does the PGS transfer poorly to non-EUR populations?
-3. What are possible solutions? (multi-ancestry GWAS, PRS-CSx, ...)
 
 ---
 
