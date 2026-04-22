@@ -104,7 +104,19 @@ Three columns: `FID IID Trait2` (continuous, $h^2 \approx 0.2$).
 
 ## Part II. Run PRSice-2
 
-### 2.1 Run at fixed $p$-value thresholds
+PRSice-2 implements the **Clumping + Thresholding (C+T)** method in a single
+automated pipeline. Conceptually it does three things:
+
+1. **Align** the base (GWAS sumstats) and target (your PLINK files) on SNP
+   identifier, effect allele and strand;
+2. **Clump** the base to keep one SNP per LD block (so we don't add the same
+   signal twice);
+3. **Score** each target individual at a grid of $p$-value thresholds and
+   regress the phenotype on each resulting PGS to pick the best threshold.
+
+Each command-line flag controls one of those three steps.
+
+### 2.1 A first, well-annotated run
 
 ```bash
 cd ~/Sociogenomics
@@ -127,7 +139,67 @@ Rscript PRSice.R --dir . \
     --out Results/Trait2_PRSice
 ```
 
-### 2.2 Inspect the output
+### 2.2 What each flag does
+
+**Wrapper / executables**
+
+| Flag | Meaning |
+|------|---------|
+| `--dir .` | Working directory PRSice uses for intermediate files |
+| `--prsice ./PRSice_linux` | Path to the compiled PRSice binary |
+| `--out Results/Trait2_PRSice` | Prefix for every output file |
+
+**Base (discovery GWAS)**
+
+| Flag | Meaning |
+|------|---------|
+| `--base Data/Trait2.ma` | Summary-statistics file |
+| `--snp SNP` | Column name with the SNP ID (rsID) |
+| `--A1 A1` | Effect allele column |
+| `--A2 A2` | Reference (non-effect) allele column |
+| `--stat BETA` | Column with the effect size |
+| `--beta` | Tells PRSice `BETA` is a linear regression coefficient. Use `--or` (odds ratio) for binary traits |
+| `--pvalue P` | Column with the $p$-value |
+
+*Optional but often useful base flags:* `--chr CHR`, `--bp BP`, `--se SE`,
+`--info INFO,0.8` (filter on imputation quality), `--maf MAF,0.01` (filter on
+allele frequency in the base).
+
+**Target (your sample)**
+
+| Flag | Meaning |
+|------|---------|
+| `--target Data/1kg_hm3_QC_CEU` | PLINK `.bed/.bim/.fam` prefix |
+| `--pheno Data/1kg.Trait2.phen` | Phenotype file (FID IID pheno) |
+| `--binary-target F` | `F` = continuous trait; `T` = case/control |
+
+**Thresholding**
+
+| Flag | Meaning |
+|------|---------|
+| `--bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1` | Thresholds for the $R^2$ barplot |
+| `--fastscore` | Only evaluate the bar levels above (fast) |
+| *(alternative)* `--lower 5e-08 --upper 0.5 --interval 5e-05` | High-resolution scan over many thresholds |
+| `--no-full` | Skip the $P_T = 1$ score |
+
+**Output**
+
+| Flag | Meaning |
+|------|---------|
+| `--all-score` | Write a PGS for every individual at every threshold (needed for Part III) |
+| `--print-snp` | Write the list of SNPs kept at each threshold |
+| `--quantile 10` | Also produce decile-based quantile plots |
+
+**Clumping (defaults shown)**
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--clump-kb` | `250` | Physical window (kb) for clumping |
+| `--clump-r2` | `0.1` | LD threshold; SNPs with $r^2$ above this are dropped |
+| `--clump-p` | `1` | Only SNPs with base $p$ below this enter clumping |
+| `--no-clump` | off | Turn clumping off altogether (don't do this on unclumped GWAS) |
+
+### 2.3 Inspect the output
 
 ```bash
 cat Results/Trait2_PRSice.summary
@@ -148,6 +220,173 @@ ls Results/Trait2_PRSice*
 1. Which $p$-value threshold gives the best $R^2$?
 2. How many SNPs are included at that threshold?
 3. Does $R^2$ increase monotonically with threshold? Why or why not?
+
+---
+
+## Part II-bis. Try different PRSice options
+
+Now that the baseline run is in place, repeat PRSice while changing **one set
+of options at a time**. Save each run under a different `--out` prefix so you
+can compare the results side-by-side.
+
+### A. High-resolution $p$-value scan
+
+`--fastscore` only tests the thresholds listed in `--bar-levels`. To find the
+true optimum, use a dense grid via `--lower / --upper / --interval`:
+
+```bash
+Rscript PRSice.R --dir . \
+    --prsice ./PRSice_linux \
+    --base Data/Trait2.ma \
+    --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --lower 5e-08 --upper 0.5 --interval 5e-05 \
+    --all-score \
+    --out Results/Trait2_PRSice_hires
+```
+
+Look at `Trait2_PRSice_hires.prsice`: there is now one row per tested
+threshold. The `*_HIGH-RES_*.png` plot shows $R^2$ vs $P_T$ as a smooth curve
+with the optimum flagged.
+
+**Compare:** does the best threshold found by the fine scan agree with the
+coarse `--fastscore` run?
+
+### B. Loose vs strict clumping
+
+Clumping parameters control **how much LD we allow between the SNPs that enter
+the score**. A stricter window + lower $r^2$ keeps fewer but more independent
+SNPs.
+
+```bash
+# Stricter: 500 kb window, r^2 < 0.01 (very independent SNPs)
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --clump-kb 500 --clump-r2 0.01 \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --out Results/Trait2_PRSice_strict
+
+# Looser: 100 kb, r^2 < 0.5 (more correlated SNPs allowed)
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --clump-kb 100 --clump-r2 0.5 \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --out Results/Trait2_PRSice_loose
+```
+
+**Compare** the number of SNPs kept (`wc -l Results/*_strict.snp` vs
+`*_loose.snp`) and the peak $R^2$. Stricter clumping usually keeps fewer SNPs
+but reduces the risk of double-counting LD-correlated signals.
+
+### C. Adjusting for covariates inside PRSice
+
+Instead of standardising the PGS in R and regressing in a second step, you can
+let PRSice fit the full model internally. Covariates must be a tab/space
+separated file with a header, first two columns `FID IID`.
+
+Make a small covariate file from the PCs:
+
+```bash
+awk 'BEGIN{OFS="\t"; print "FID","IID","PC1","PC2","PC3","PC4","PC5"}
+     {print $1,$2,$3,$4,$5,$6,$7}' Data/1kg_pca.eigenvec \
+   > Data/pcs.cov
+head Data/pcs.cov
+```
+
+Run PRSice with the covariates:
+
+```bash
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --cov Data/pcs.cov --cov-col PC1,PC2,PC3,PC4,PC5 \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --out Results/Trait2_PRSice_cov
+```
+
+Now `*.summary` reports $R^2$ as the **incremental** $R^2$ over the
+covariates-only model. Compare it with the raw $R^2$ from the baseline run.
+
+### D. Scoring method: average vs sum
+
+`--score` controls how per-SNP contributions are aggregated:
+
+| Value | Formula |
+|-------|---------|
+| `avg` (default) | $\mathrm{PGS}_i = \tfrac{1}{M}\sum_j \beta_j\,x_{ij}$ |
+| `sum` | $\mathrm{PGS}_i = \sum_j \beta_j\,x_{ij}$ |
+| `std` | Standardises genotypes before summing |
+
+```bash
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --score sum \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --out Results/Trait2_PRSice_sum
+```
+
+$R^2$ should be **identical** to the default run — only the scale of the PGS
+changes. Plot both PGS distributions in R to confirm.
+
+### E. Decile / quantile plot
+
+`--quantile 10` produces a "decile plot": the sample is split into 10 equal
+bins of PGS, and the mean phenotype is plotted per bin. It is the classic way
+to visualise risk gradients.
+
+```bash
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --quantile 10 \
+    --out Results/Trait2_PRSice_q10
+```
+
+Look for `*_QUANTILES_*.png`.
+
+### F. Restrict the base by MAF or INFO
+
+Very rare or poorly imputed SNPs are the first suspects when a PGS looks
+noisy. Filter them out at the source:
+
+```bash
+Rscript PRSice.R --dir . --prsice ./PRSice_linux \
+    --base Data/Trait2.ma --target Data/1kg_hm3_QC_CEU \
+    --snp SNP --A1 A1 --A2 A2 --stat BETA --pvalue P --beta \
+    --maf MAF,0.05 \
+    --pheno Data/1kg.Trait2.phen --binary-target F \
+    --bar-levels 5e-08,5e-06,5e-04,0.05,0.5,1 --fastscore --all-score \
+    --out Results/Trait2_PRSice_maf05
+```
+
+(Only works if `Trait2.ma` has a `MAF` column — otherwise PRSice will tell
+you.) Replace with `--info INFO,0.8` if the base has imputation quality.
+
+### Exercise 1-bis
+
+Run at least **two** of the variants above (suggested: high-res scan + strict
+vs loose clumping) and fill in the comparison table:
+
+| Run | Best $P_T$ | # SNPs | Best $R^2$ |
+|-----|------------|--------|------------|
+| Baseline (`Trait2_PRSice`) | | | |
+| High-res (`_hires`) | | | |
+| Strict clumping (`_strict`) | | | |
+| Loose clumping (`_loose`) | | | |
+| With covariates (`_cov`) | | | |
+
+Write 2-3 sentences on what moves the $R^2$ the most: threshold, clumping, or
+covariates?
 
 ---
 
@@ -292,75 +531,3 @@ boxplot(PGS ~ super_pop, data = da,
 
 ---
 
-## Part V. Gene $\times$ Sex interaction
-
-Does the PGS effect differ between males and females?
-
-```r
-# Use the EUR data from Part III (object d)
-fam <- read.table("Data/1kg_hm3_QC_CEU.fam",
-                  col.names = c("FID","IID","fa","mo","sex","ph"))
-d <- merge(d, fam[, c("FID","IID","sex")], by = c("FID","IID"))
-d$female <- ifelse(d$sex == 2, 1, 0)
-
-# Interaction model
-mod_gxe <- lm(Trait2 ~ PGS * female +
-              PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10, data = d)
-summary(mod_gxe)
-
-# Plot
-library(ggplot2)
-d$Sex <- ifelse(d$female == 1, "Female", "Male")
-ggplot(d, aes(x = PGS, y = Trait2, colour = Sex)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "PGS x Sex interaction",
-       x = "PGS (standardised)", y = "Trait2") +
-  theme_minimal()
-```
-
-**Interpretation:**
-* $\beta_3 > 0$: PGS effect **larger** in females (reinforcing)
-* $\beta_3 < 0$: PGS effect **attenuated** in females (compensating)
-* $\beta_3 \approx 0$: no interaction
-
-### Exercise 4
-
-1. Report $\hat{\beta}_3$, SE, $p$-value. Is the interaction significant?
-2. Do the regression lines have different slopes?
-3. **Bonus:** repeat replacing sex with PC1 (ancestry gradient within EUR).
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| `Rscript: command not found` | Run `sudo apt-get install -y r-base` |
-| `./plink: Permission denied` | Run `chmod +x plink` |
-| `./PRSice_linux: Permission denied` | Run `chmod +x PRSice_linux` |
-| R package install fails | Try `install.packages("pkg", repos="https://cloud.r-project.org")` |
-| `Error: cannot open connection` (file not found) | Check you are in `~/Sociogenomics` with `pwd` |
-| PRSice produces empty output | Check `Trait2.ma` column names match `--snp SNP --A1 A1 --pvalue P` |
-| Barplot PNG not visible | Download via Cloud Shell menu (⋮ → Download file) |
-| Cloud Shell session expired, R gone | Run `sudo apt-get install -y r-base` again |
-
----
-
-## Summary
-
-| Step | Tool | What you learned |
-|------|------|------------------|
-| Run PRSice-2 | `Rscript PRSice.R` | Automated C+T pipeline |
-| Analyse PGS | R | Distribution, incremental $R^2$, threshold comparison |
-| Bootstrap CI | R (`boot`) | Uncertainty quantification |
-| Cross-ancestry | PLINK + R | PGS portability limitations |
-| GxE interaction | R + ggplot2 | PGS $\times$ environment |
-
-**Key messages:**
-
-* PRSice-2 automates C+T in one command
-* Always control for ancestry PCs and report **incremental** $R^2$
-* The optimal $p$-value threshold is trait-specific
-* PGS trained in EUR transfer poorly to non-EUR populations
-* GxE interactions reveal whether genetic effects depend on the environment
