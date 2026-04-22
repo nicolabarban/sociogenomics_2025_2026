@@ -50,13 +50,11 @@
 * [Pre-computed results bundle (`lab6_results.zip`)](labs/week6/lab6_results.zip)
 * [Solutions](labs/week6/lab6_solutions.md)
 
+## Week 7 — Polygenic Scores with PRSice-2
+
+* [Lab 7 — PGS with PRSice-2](labs/week7/lab7_pgs.md)
+
 <!--
-## Week 7 — Gene × Environment
-
-* [Lab 7 — GxE analysis](labs/week7/lab7.md)
-
-
-
 ## Week 8 — Genetic correlation & summary statistics
 * [Lab week 8](labs/week8/lab8.md)
 -->
