@@ -410,19 +410,7 @@ barplot(results$delta_r2, names.arg = results$threshold,
 
 The PGS was trained on EUR GWAS. Does it predict in other populations?
 
-### 4.1 Score all 1,092 individuals
-
-Back in the terminal (quit R with `q()`):
-
-```bash
-cd ~/Sociogenomics
-
-./plink --bfile Data/1kg_hm3 \
-        --score Results/Trait2_PRSice.snp 1 2 4 header \
-        --out Results/Trait2_pgs_all_pops
-```
-
-### 4.2 Analyse in R
+### 4.1 Analyse in R
 
 ```r
 pgs_all <- read.table("Results/Trait2_pgs_all_pops.profile", header = TRUE)
