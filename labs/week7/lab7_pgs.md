@@ -20,6 +20,12 @@ ls
 
 You should see: `1kg_hm3.*`, `1kg_hm3_QC_CEU.*`, `Trait2.ma`, `1kg.Trait2.phen`, `1kg_pca.eigenvec`, `EUR.id`, and others.
 
+> **Working in RStudio on your laptop?** PRSice and PLINK are Linux binaries
+> and will not run locally on macOS/Windows. Download
+> [`lab7_rstudio.zip`](lab7_rstudio.zip) instead: it contains the
+> **pre-computed** PRSice outputs plus the phenotype/PC/population files, so
+> you can skip directly to Part III.
+
 ### 0.2 Install PLINK
 
 ```bash

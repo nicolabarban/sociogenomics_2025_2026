@@ -53,6 +53,8 @@
 ## Week 7 — Polygenic Scores with PRSice-2
 
 * [Lab 7 — PGS with PRSice-2](labs/week7/lab7_pgs.md)
+* [Data bundle (Cloud Shell / Linux — includes `.bed`, PRSice inputs)](labs/week7/lab7_data.zip)
+* [RStudio bundle — pre-computed PRSice outputs + phenotypes + PCs](labs/week7/lab7_rstudio.zip)
 
 <!--
 ## Week 8 — Genetic correlation & summary statistics
