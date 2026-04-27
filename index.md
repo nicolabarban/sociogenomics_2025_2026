@@ -56,7 +56,9 @@
 * [Data bundle (Cloud Shell / Linux — includes `.bed`, PRSice inputs)](labs/week7/lab7_data.zip)
 * [RStudio bundle — pre-computed PRSice outputs + phenotypes + PCs](labs/week7/lab7_rstudio.zip)
 
-<!--
-## Week 8 — Genetic correlation & summary statistics
-* [Lab week 8](labs/week8/lab8.md)
--->
+## Week 8 — Gene × Environment
+
+* [Lab 8 — G×E: replicating Walter et al. (2016)](labs/week8/lab8_gxe.md)
+* [R script](labs/week8/lab8_gxe.R)
+* [Solutions](labs/week8/lab8_gxe_solutions.md)
+* Data: `hrs_lab8.csv` (HRS subset, distributed via course Slack/Moodle — not on GitHub)

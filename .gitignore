@@ -36,3 +36,7 @@ tmp/
 *.tar.gz
 .Rhistory
 .Rproj.user
+
+# Restricted teaching data (HRS DUA — must NOT be redistributed publicly)
+labs/week8/data/
+hrs_lab8.csv
