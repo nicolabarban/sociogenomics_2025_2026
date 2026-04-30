@@ -234,24 +234,6 @@ interact_plot(m_gxe,
 
 You should see a fan: lines for older cohorts are *flatter*, lines for younger cohorts are *steeper*. Same PGS, more BMI in younger cohorts.
 
-### 4.2 Slope of PGS as a function of birth year (with CI band)
-
-This is the iconic Walter-style plot:
-
-```r
-library(jtools)
-sim_slopes(m_gxe, pred = "pgs_bmi", modx = "by_c",
-           modx.values = seq(-40, 35, by = 5))
-```
-
-`sim_slopes` returns the conditional PGS slope at each birth-year value. To plot the trajectory, use `interactions::johnson_neyman`:
-
-```r
-johnson_neyman(m_gxe, pred = "pgs_bmi", modx = "by_c", alpha = 0.05)
-```
-
-The Johnson-Neyman plot shows where the PGS slope is statistically distinguishable from zero across cohorts. In our data, the slope is positive everywhere — the PGS always matters — but it is much *larger* in younger cohorts.
-
 ---
 
 ## 5. The Walter design: pre-1944 vs post-1944 split

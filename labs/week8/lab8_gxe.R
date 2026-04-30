@@ -116,14 +116,6 @@ interact_plot(m_gxe,
               y.label = "Predicted BMI",
               legend.main = "Birth cohort")
 
-# Conditional PGS slope at a grid of birth years
-ss <- sim_slopes(m_gxe, pred = "pgs_bmi", modx = "by_c",
-                 modx.values = seq(-40, 35, by = 5))
-print(ss)
-
-# Johnson-Neyman: where is the PGS slope significantly non-zero?
-johnson_neyman(m_gxe, pred = "pgs_bmi", modx = "by_c", alpha = 0.05)
-
 ## --- 5. Walter design: pre-1944 vs post-1944 split ---------------------
 
 d[, walter := factor(ifelse(birth_year < 1944, "pre1944", "post1944"),
