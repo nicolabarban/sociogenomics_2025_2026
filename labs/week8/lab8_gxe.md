@@ -434,6 +434,44 @@ Interpretation: the **secular obesogenic shift** (cheap calories, sedentary jobs
 
 ---
 
+## 9. Exercise: try other moderators on your own
+
+The dataset gives you **three more behavioural / health variables** that are plausible moderators of the BMI PGS. Run a G$\times$E analysis with each, mirroring the structure of § 8, and bring the results to next class.
+
+| Variable | Type | Hypothesis to test |
+|---|---|---|
+| `smoke_last` | binary (0/1, current smoker at last wave) | Smokers tend to be leaner — does the PGS slope on BMI differ between smokers and non-smokers? |
+| `drink_last` | binary (0/1, currently drinks alcohol) | Drinking is a behavioural choice tied to socio-economic position; exploratory |
+| `shlt_last` | ordinal 1–5 (1 = excellent, 5 = poor self-rated health) | Treat as continuous; check whether PGS effect on BMI is larger for those reporting worse health (potential reverse causation since BMI itself predicts SRH — discuss) |
+
+For each, deliver:
+
+1. **Model output**: the three relevant coefficients — `pgs_bmi`, `<E>`, `pgs_bmi:<E>` — with standard errors and p-values. Use the same controls as the rest of the lab (`birth_year`, `sex`, 10 PCs).
+
+   ```r
+   # Template — adapt for each E
+   fmla_E <- as.formula(paste(
+     "BMI_AV ~ pgs_bmi * <E> + birth_year + sex +",
+     paste(pcs, collapse = " + ")
+   ))
+   m_E <- lm(fmla_E, data = d)
+   coef(summary(m_E))[c("pgs_bmi", "<E>", "pgs_bmi:<E>"), ]
+   ```
+
+2. **Plot**: an `interact_plot` with `pred = "pgs_bmi"`, `modx = <E>`. For binary moderators just use `modx.values = c(0, 1)`; for `shlt_last` use `c(1, 3, 5)`.
+
+3. **One-paragraph interpretation** that addresses, for each E:
+   * Sign and significance of the **main effect** (does this E correlate with BMI in the expected direction?).
+   * Sign and significance of the **interaction** (is the PGS slope different across levels of E?).
+   * **Causal status**: is this a clean E or an outcome co-determined by genes and behaviour? (Hint: smoking, drinking, and self-rated health are all *outcomes* themselves, possibly downstream of the PGS — so even more clearly *not* exogenous than education.)
+   * If the interaction is null, what does that tell you mechanistically?
+
+4. **Bonus** (not required): re-run all three models on the cleaner subset `d[pc_outlier == FALSE]` and check whether anything moves.
+
+> **Discussion seed.** Recall from § 8 that *education* did **not** moderate the BMI PGS. Do *smoking* / *drinking* / *self-rated health* tell a different story? If they do, what does it imply about the *route* through which environment touches genetic risk for BMI — is it about cumulative exposures (cohort), about life-course choices (smoking), or about something else entirely?
+
+---
+
 ## References
 
 * Walter, S., Mejía-Guevara, I., Estrada, K., Liu, S. Y., & Glymour, M. M. (2016). *Association of a Genetic Risk Score with Body Mass Index Across Different Birth Cohorts.* **JAMA**, 316(1), 63–69.
