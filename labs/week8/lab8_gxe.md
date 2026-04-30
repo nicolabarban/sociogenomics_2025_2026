@@ -224,10 +224,12 @@ Two complementary plots.
 ```r
 interact_plot(m_gxe,
               pred = "pgs_bmi", modx = "by_c",
-              modx.values = c(-30, -10, 10, 30),    # 1914, 1934, 1954, 1974
+              modx.values = c(-30, -10, 10, 30),
+              modx.labels = c("1914 cohort", "1934 cohort",
+                              "1954 cohort", "1974 cohort"),
               interval = TRUE, int.width = 0.95,
               x.label = "PGS-BMI (SD)", y.label = "Predicted BMI",
-              legend.main = "Birth year (centred at 1944)")
+              legend.main = "Birth cohort")
 ```
 
 You should see a fan: lines for older cohorts are *flatter*, lines for younger cohorts are *steeper*. Same PGS, more BMI in younger cohorts.

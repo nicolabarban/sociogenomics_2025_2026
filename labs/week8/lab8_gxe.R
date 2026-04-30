@@ -109,10 +109,12 @@ cat(sprintf("delta R^2 from G x E = %.5f\n", delta_r2))
 interact_plot(m_gxe,
               pred = "pgs_bmi", modx = "by_c",
               modx.values = c(-30, -10, 10, 30),
+              modx.labels = c("1914 cohort", "1934 cohort",
+                              "1954 cohort", "1974 cohort"),
               interval = TRUE, int.width = 0.95,
               x.label = "PGS-BMI (SD)",
               y.label = "Predicted BMI",
-              legend.main = "Birth year - 1944")
+              legend.main = "Birth cohort")
 
 # Conditional PGS slope at a grid of birth years
 ss <- sim_slopes(m_gxe, pred = "pgs_bmi", modx = "by_c",
@@ -172,10 +174,11 @@ anova(m_gxe, m_3way)
 interact_plot(m_3way,
               pred = "pgs_bmi", modx = "by_c", mod2 = "sex",
               modx.values = c(-20, 20),
+              modx.labels = c("1924 cohort", "1964 cohort"),
               interval = TRUE, int.width = 0.95,
               x.label = "PGS-BMI (SD)",
               y.label = "Predicted BMI",
-              legend.main = "Birth year - 1944")
+              legend.main = "Birth cohort")
 
 ## --- 7. G x E with education as the moderator -------------------------
 ##  Compare three specifications against Walter's birth-year result.
