@@ -62,7 +62,7 @@ library(interactions)
 
 d <- fread("hrs_lab8.csv")     # <-- adjust to your path
 str(d)
-summary(d[, .(BMI_AV, Age_AV, birth_year, pgs_bmi)])
+summary(d[, .(BMI_AV, birth_year, pgs_bmi)])
 table(d$sex)
 ```
 
@@ -73,7 +73,6 @@ The variables are:
 | `id` | anonymised subject identifier (`S00001`…) |
 | `pgs_bmi` | BMI PGS, **standardised** to mean 0 / SD 1 (PGS3 / GIANT 2015) |
 | `BMI_AV` | mean BMI across HRS waves 1–12 |
-| `Age_AV` | mean age (years) across the same waves |
 | `birth_year` | year of birth (1905–1980) |
 | `sex` | factor: `male`, `female` |
 | `raedyrs` | respondent's years of completed schooling (0–17) |
@@ -89,12 +88,42 @@ The variables are:
 
 > **Why include the PCs?** Population structure produces correlated allele frequencies and outcome differences. Without PCs the PGS coefficient is partly confounded by ancestry. Always include at least 5–10 PCs.
 
-Quick sanity-check plot:
+Quick sanity-check plots:
 
 ```r
+# Birth-year distribution
 ggplot(d, aes(birth_year)) + geom_histogram(binwidth = 2, fill = "steelblue") +
   labs(x = "Year of birth", y = "Count") + theme_minimal()
+
+# Distribution of the BMI polygenic index (PGI / PGS)
+ggplot(d, aes(pgs_bmi)) +
+  geom_histogram(bins = 50, fill = "steelblue", colour = "white", alpha = 0.85) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40") +
+  labs(x = "PGS-BMI (z-scored)", y = "Count",
+       title = "Polygenic index for BMI",
+       subtitle = "After standardisation: mean 0, SD 1") +
+  theme_minimal()
 ```
+
+The PGS histogram should look approximately Gaussian — that's the typical shape of a polygenic score (sum of many small allele effects, central limit theorem).
+
+### 1.1 Binscatter: BMI vs PGS
+
+A scatter of all 8,000+ points is too dense to read. A **binscatter** shows the same relationship cleanly: split the PGS into equal-width bins, average BMI within each bin, then plot the bin means with an OLS line through the raw data.
+
+```r
+ggplot(d, aes(pgs_bmi, BMI_AV)) +
+  stat_summary_bin(fun = mean, bins = 25, geom = "point",
+                   colour = "steelblue", size = 2) +
+  geom_smooth(method = "lm", se = FALSE,
+              colour = "firebrick", linewidth = 0.7) +
+  labs(x = "PGS-BMI (z-scored)", y = "Mean BMI in bin",
+       title = "Binscatter: BMI by PGS-BMI",
+       subtitle = "25 equal-width bins, OLS fit on raw data") +
+  theme_minimal()
+```
+
+You should see an almost perfectly linear, positive relationship: each bin step up in PGS adds $\approx 1$–$1.5$ BMI units. This is the "main effect" we will quantify in § 2.
 
 ---
 
@@ -177,7 +206,7 @@ m_main <- lm(fmla_main, data = d)
 coef(summary(m_main))["pgs_bmi", ]
 ```
 
-> **Why no `Age_AV` here?** `Age_AV` (mean age across HRS waves) is mechanically tied to `birth_year`: people born earlier are older at any given wave. Including both in the same regression introduces strong collinearity and can soak up the cohort effect we want to interpret. We keep `birth_year` (the cohort marker) and drop `Age_AV`.
+> **Why no age control here?** Age-at-measurement and `birth_year` are mechanically tied in a panel like HRS: people born earlier are older at any given wave. Including both in the same regression produces strong collinearity and the cohort coefficient gets unstable. We keep `birth_year` (the cohort marker) and don't add a separate age control.
 
 > **Checkpoint.** You should find $\beta_{\text{PGS}} \approx 1.5$ BMI units per SD of PGS, with $p < 10^{-100}$. A 1-SD higher PGS is associated with $\approx 1.5$ kg/m² higher BMI on average.
 
@@ -332,50 +361,87 @@ Interpret the three-way coefficient `pgs_bmi:by_c:sexfemale`. Does the obesogeni
 
 ---
 
-## 8. Optional extension: alternative environmental moderators
+## 8. G$\times$E with education as the moderator
 
-Birth year is one specific environmental story (the post-war obesogenic shift). The dataset also gives you several other E candidates that have been shown to moderate the BMI PGS in the literature. Try at least one of these and compare the interaction term to Walter's $\beta_{GE} \approx 0.025$.
+Birth year is one environmental story (the post-war obesogenic shift). A different class of E variables that the sociogenomics literature has explored heavily is **socio-economic position** — most commonly **education**. The intuition: in a high-education environment, people may have more information, money, and time to push back against an inherited tendency toward weight gain; the PGS slope should then be *attenuated* at higher education levels.
 
-| Variable | What it is | Hypothesised direction |
-|---|---|---|
-| `raedyrs` | respondent's years of schooling | PGS effect on BMI is *attenuated* at higher education (more compensatory behaviour) |
-| `rameduc` / `rafeduc` | parental education (early-life SES) | similar logic, but it's the *childhood* environment doing the work |
-| `smoke_last` | currently smokes (0/1) | smokers tend to be leaner — the PGS effect can look different by smoking status |
-| `drink_last` | currently drinks alcohol (0/1) | exploratory |
-| `shlt_last` | self-rated health (1 = excellent, 5 = poor) | strongly correlated with BMI; treat as a robustness check rather than a moderator |
+Three specifications. Run them in turn and compare the interaction terms to Walter's $\beta_{GE} \approx 0.025$ from § 3.
 
-Generic recipe (replace `E` with the variable of choice):
+### 8.1 Continuous, z-scored years of schooling
 
 ```r
-# centre/scale the moderator if continuous to keep coefficients interpretable
-d[, E := scale(raedyrs)]                  # example: own years of education
+d[, edu_z := scale(raedyrs)]    # mean 0, SD 1
 
-fmla_E <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * E + birth_year + sex +",
+fmla_edu <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * edu_z + birth_year + sex +",
   paste(pcs, collapse = " + ")
 ))
+m_edu <- lm(fmla_edu, data = d)
+coef(summary(m_edu))[c("pgs_bmi", "edu_z", "pgs_bmi:edu_z"), ]
+```
 
-m_E <- lm(fmla_E, data = d)
-coef(summary(m_E))[c("pgs_bmi", "E", "pgs_bmi:E"), ]
+> **Checkpoint.** Strong **main** effect of education on BMI ($\beta_{\text{edu}} \approx -0.43$, $p < 10^{-13}$): a one-SD higher education is associated with $\approx 0.4$ kg/m² lower BMI. But the **interaction** $\beta_{\text{PGS:edu}} \approx -0.04$, $p \approx 0.4$ — not distinguishable from zero. Education shifts the *level* of BMI but does not visibly moderate the PGS slope.
 
-interact_plot(m_E, pred = "pgs_bmi", modx = "E",
+### 8.2 Three-level education (handle non-linearity)
+
+Maybe the relationship isn't linear in years — perhaps only college-or-more matters. Recode:
+
+```r
+d[, edu3 := cut(raedyrs,
+                breaks = c(-Inf, 12, 15, Inf),
+                labels = c("HS_or_less", "some_coll", "coll_plus"))]
+table(d$edu3)
+
+fmla_e3 <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * edu3 + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_e3 <- lm(fmla_e3, data = d)
+summary(m_e3)$coef[grep("pgs_bmi|edu3", rownames(summary(m_e3)$coef)), ]
+```
+
+> **Checkpoint.** College-or-more is associated with $\approx 1.1$ kg/m² lower BMI than HS-or-less, holding everything else fixed. But neither of the two `pgs_bmi:edu3*` interaction terms is significant ($p > 0.5$). Even the non-linear coding gives a null G$\times$Education.
+
+### 8.3 Parental education (childhood SES)
+
+The respondent's *own* years of schooling is shaped by childhood SES, by the same genes that drive the PGS, and by their adult choices. **Parental education** is a cleaner proxy for the *childhood* environment — closer to a true E variable in the rGE sense, because it cannot be a function of the respondent's own genotype.
+
+```r
+d_par <- d[!is.na(rameduc) & !is.na(rafeduc)]
+d_par[, par_edu := scale((rameduc + rafeduc) / 2)]
+
+fmla_pe <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * par_edu + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_pe <- lm(fmla_pe, data = d_par)
+coef(summary(m_pe))[c("pgs_bmi", "par_edu", "pgs_bmi:par_edu"), ]
+```
+
+> **Checkpoint.** $n \approx 7{,}300$ after dropping rows missing parental education. The main effect is again negative ($\beta_{\text{par\_edu}} \approx -0.40$). The interaction $\beta_{\text{PGS:par\_edu}} \approx +0.07$, $p \approx 0.2$ — *positive* (i.e. PGS slope slightly steeper for kids of better-educated parents) and still not significant.
+
+### 8.4 Visualise (specification 8.1) and discuss
+
+```r
+interact_plot(m_edu, pred = "pgs_bmi", modx = "edu_z",
               modx.values = c(-1, 0, 1),
+              interval = TRUE, int.width = 0.95,
               x.label = "PGS-BMI (SD)", y.label = "Predicted BMI",
               legend.main = "Education (SD)")
 ```
 
-For a **binary** moderator (e.g. `smoke_last`), drop the `scale()` and `modx.values` defaults to `0`/`1`:
+You should see three nearly-parallel lines, just shifted vertically. The flat-fan pattern is what a non-significant G$\times$E looks like — contrast it with the wide fan you produced from `m_gxe` in § 4.1.
 
-```r
-fmla_S <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * smoke_last + birth_year + sex +",
-  paste(pcs, collapse = " + ")
-))
-m_S <- lm(fmla_S, data = d)
-coef(summary(m_S))[c("pgs_bmi", "smoke_last", "pgs_bmi:smoke_last"), ]
-```
+### 8.5 What does the contrast Walter (cohort) vs Education tell us?
 
-> **Caveat.** Unlike `birth_year`, these moderators are *not* exogenous — they are themselves outcomes of genes, environment, and choices. A G×E coefficient on `raedyrs` does not have the same causal status as a G×E on `birth_year`. Read the result as descriptive (does the PGS slope differ across groups?) not causal (does education *unlock* the PGS?).
+A non-result is also a result. With the *same* PGS, in the *same* sample:
+
+* **Birth year** moderates the PGS slope strongly and significantly ($\beta_{GE} \approx 0.025$, $p \approx 10^{-7}$).
+* **Years of education**, **3-level education**, and **parental education** do *not* — every interaction is small and non-significant.
+
+Interpretation: the **secular obesogenic shift** (cheap calories, sedentary jobs, motorisation) appears to "unlock" genetic predisposition for everyone in roughly the same way, regardless of where they sit in the education distribution. That contrasts with **education-attainment PGS**, where prior literature (Domingue et al., Tropf et al.) finds that environmental opportunities *do* gate genetic potential. The mechanism for BMI — exposure to ubiquitous environmental change — is harder to escape via SES than the mechanism for educational attainment.
+
+> **Caveat on causal status.** Unlike `birth_year`, *neither* `raedyrs` nor `par_edu` is exogenous — they are themselves shaped by genes and environment. A G$\times$E coefficient on education is therefore *descriptive* (does the PGS slope differ across education levels?) and not *causal* (does education unlock the PGS?). Even if the interaction were significant, identifying it as causal would require an instrument (e.g. compulsory-schooling reforms, as in Davies et al. 2018).
 
 ---
 

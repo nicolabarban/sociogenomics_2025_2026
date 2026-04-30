@@ -26,12 +26,33 @@ data_path <- "hrs_lab8.csv"
 d <- fread(data_path)
 
 str(d)
-summary(d[, .(BMI_AV, Age_AV, birth_year, pgs_bmi)])
+summary(d[, .(BMI_AV, birth_year, pgs_bmi)])
 table(d$sex)
 
 ggplot(d, aes(birth_year)) +
   geom_histogram(binwidth = 2, fill = "steelblue") +
   labs(x = "Year of birth", y = "Count") +
+  theme_minimal()
+
+# Distribution of the polygenic index (PGI / PGS)
+ggplot(d, aes(pgs_bmi)) +
+  geom_histogram(bins = 50, fill = "steelblue", colour = "white", alpha = 0.85) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40") +
+  labs(x = "PGS-BMI (z-scored)", y = "Count",
+       title = "Polygenic index for BMI",
+       subtitle = "After standardisation: mean 0, SD 1") +
+  theme_minimal()
+
+## --- 1.1 Binscatter: BMI vs PGS ---------------------------------------
+
+ggplot(d, aes(pgs_bmi, BMI_AV)) +
+  stat_summary_bin(fun = mean, bins = 25, geom = "point",
+                   colour = "steelblue", size = 2) +
+  geom_smooth(method = "lm", se = FALSE,
+              colour = "firebrick", linewidth = 0.7) +
+  labs(x = "PGS-BMI (z-scored)", y = "Mean BMI in bin",
+       title = "Binscatter: BMI by PGS-BMI",
+       subtitle = "25 equal-width bins, OLS fit on raw data") +
   theme_minimal()
 
 ## --- 1.5 PC inspection: flag non-EUR individuals -----------------------
@@ -169,30 +190,54 @@ interact_plot(m_3way,
               y.label = "Predicted BMI",
               legend.main = "Birth year - 1944")
 
-## --- 7. Optional: alternative E moderators -----------------------------
-##  Replace `birth_year` with another environmental moderator and look
-##  at the interaction. None of these are exogenous like birth year, so
-##  read the results as descriptive, not causal.
+## --- 7. G x E with education as the moderator -------------------------
+##  Compare three specifications against Walter's birth-year result.
+##  None of these are exogenous like birth_year -- read descriptively.
 
-# Education (continuous): scale to keep coefficients on a 1-SD scale
+## (a) Continuous, z-scored years of schooling
 d[, edu_z := scale(raedyrs)]
 fmla_edu <- as.formula(paste(
   "BMI_AV ~ pgs_bmi * edu_z + birth_year + sex +",
   paste(pcs, collapse = " + ")
 ))
 m_edu <- lm(fmla_edu, data = d)
-coef(summary(m_edu))[c("pgs_bmi", "edu_z", "pgs_bmi:edu_z"), ]
+cat("\n--- (a) continuous edu (z) ---\n")
+print(round(coef(summary(m_edu))[c("pgs_bmi","edu_z","pgs_bmi:edu_z"), ], 4))
 
 interact_plot(m_edu, pred = "pgs_bmi", modx = "edu_z",
               modx.values = c(-1, 0, 1),
+              interval = TRUE, int.width = 0.95,
               x.label = "PGS-BMI (SD)",
               y.label = "Predicted BMI",
               legend.main = "Education (SD)")
 
-# Current smoking (binary)
-fmla_smk <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * smoke_last + birth_year + sex +",
+## (b) Three-level education (HS / some college / college+)
+d[, edu3 := cut(raedyrs,
+                breaks = c(-Inf, 12, 15, Inf),
+                labels = c("HS_or_less", "some_coll", "coll_plus"))]
+print(table(d$edu3))
+
+fmla_e3 <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * edu3 + birth_year + sex +",
   paste(pcs, collapse = " + ")
 ))
-m_smk <- lm(fmla_smk, data = d)
-coef(summary(m_smk))[c("pgs_bmi", "smoke_last", "pgs_bmi:smoke_last"), ]
+m_e3 <- lm(fmla_e3, data = d)
+cat("\n--- (b) 3-level education ---\n")
+co <- coef(summary(m_e3))
+print(round(co[grep("pgs_bmi|edu3", rownames(co)), ], 4))
+
+## (c) Parental education (childhood SES proxy, cleaner E)
+d_par <- d[!is.na(rameduc) & !is.na(rafeduc)]
+d_par[, par_edu := scale((rameduc + rafeduc) / 2)]
+
+fmla_pe <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * par_edu + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_pe <- lm(fmla_pe, data = d_par)
+cat("\n--- (c) parental education (z) ---\n")
+print(round(coef(summary(m_pe))[c("pgs_bmi","par_edu","pgs_bmi:par_edu"), ], 4))
+cat(sprintf("  n = %d (drop rows missing parental edu)\n", nrow(d_par)))
+
+cat("\nContrast: birth_year G x E is significant (~0.025, p < 1e-7),\n",
+    "but every education spec gives a near-null interaction.\n", sep = "")

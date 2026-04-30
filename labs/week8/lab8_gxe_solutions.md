@@ -13,7 +13,7 @@ t value             : ~ 26
 p value             : < 1e-100
 ```
 
-A 1-SD higher PGS-BMI is associated with $\approx 1.5$ kg/m² higher mean BMI, controlling for sex, birth year, and 10 PCs. (We drop `Age_AV` here: it is mechanically tied to `birth_year` in HRS and including both produces collinearity that distorts the cohort coefficient.)
+A 1-SD higher PGS-BMI is associated with $\approx 1.5$ kg/m² higher mean BMI, controlling for sex, birth year, and 10 PCs. (We do not add an age-at-measurement control: it is mechanically tied to `birth_year` in HRS and including both produces collinearity that distorts the cohort coefficient.)
 
 The $R^2$ of `m_main` is around $0.12$. PGS alone (with controls) explains $\approx 12\%$ of the variance in BMI in this older sample — typical for current-generation BMI PGS.
 
@@ -33,7 +33,7 @@ pgs_bmi:by_c        0.0250     0.0045       5.6    ~ 3e-08
 * For someone born in 1944, the PGS slope is $\approx 1.60$.
 * Each additional year of birth raises that slope by $\approx 0.025$ BMI units.
 * Across the 75-year span 1905→1980, the implied total shift in slope is about $0.025 \times 75 \approx 1.9$ — i.e., the PGS slope nearly *doubles* from oldest to youngest cohort.
-* The main effect of `by_c` ($\approx 0.097$) absorbs the secular obesity trend now that `Age_AV` is gone: BMI rises by about 1 kg/m² per decade of later birth.
+* The main effect of `by_c` ($\approx 0.097$) captures the secular obesity trend: BMI rises by about 1 kg/m² per decade of later birth.
 
 `anova(m_main, m_gxe)`: $F \approx 31$, $p \approx 3 \times 10^{-8}$. The interaction is a real signal.
 
