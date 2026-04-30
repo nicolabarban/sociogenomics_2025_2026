@@ -17,7 +17,9 @@ suppressPackageStartupMessages({
   library(jtools)
 })
 
-data_path <- "~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv"
+# Path to the dataset. Change to wherever you saved hrs_lab8.csv.
+# If you downloaded it next to this script, just "hrs_lab8.csv" works.
+data_path <- "hrs_lab8.csv"
 
 ## --- 1. Load and inspect -----------------------------------------------
 
@@ -166,3 +168,31 @@ interact_plot(m_3way,
               x.label = "PGS-BMI (SD)",
               y.label = "Predicted BMI",
               legend.main = "Birth year - 1944")
+
+## --- 7. Optional: alternative E moderators -----------------------------
+##  Replace `birth_year` with another environmental moderator and look
+##  at the interaction. None of these are exogenous like birth year, so
+##  read the results as descriptive, not causal.
+
+# Education (continuous): scale to keep coefficients on a 1-SD scale
+d[, edu_z := scale(raedyrs)]
+fmla_edu <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * edu_z + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_edu <- lm(fmla_edu, data = d)
+coef(summary(m_edu))[c("pgs_bmi", "edu_z", "pgs_bmi:edu_z"), ]
+
+interact_plot(m_edu, pred = "pgs_bmi", modx = "edu_z",
+              modx.values = c(-1, 0, 1),
+              x.label = "PGS-BMI (SD)",
+              y.label = "Predicted BMI",
+              legend.main = "Education (SD)")
+
+# Current smoking (binary)
+fmla_smk <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * smoke_last + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_smk <- lm(fmla_smk, data = d)
+coef(summary(m_smk))[c("pgs_bmi", "smoke_last", "pgs_bmi:smoke_last"), ]

@@ -21,29 +21,21 @@ This lab is designed to be run **locally in RStudio** (R ≥ 4.1). It does **not
 
 ### 0.1 Get the data
 
-The dataset `hrs_lab8.csv` (≈ 1.3 MB) is **not** stored in the GitHub repository because of the HRS data-use agreement; the instructor distributes it via a private Dropbox link instead. Download it from:
+The dataset `hrs_lab8.csv` (≈ 1.4 MB) is **not** stored in the GitHub repository because of the HRS data-use agreement; the instructor distributes it via a private Dropbox link instead. Download it from:
 
 <https://www.dropbox.com/scl/fi/6t4iqjec1l08eodssbk8d/hrs_lab8.csv?rlkey=7qm0daymlogvart7yl41ppaj2&dl=0>
 
-Or, equivalently, fetch it from R (the `dl=1` suffix forces a direct download):
+Or, equivalently, fetch it from R (the `dl=1` suffix forces a direct download). Save it wherever you like — just point the snippet below to that path:
 
 ```r
-dir.create("~/sociogenomics_2025_2026/labs/week8/data",
-           recursive = TRUE, showWarnings = FALSE)
 download.file(
   "https://www.dropbox.com/scl/fi/6t4iqjec1l08eodssbk8d/hrs_lab8.csv?rlkey=7qm0daymlogvart7yl41ppaj2&dl=1",
-  "~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv",
+  "hrs_lab8.csv",      # <-- change to wherever you want the file saved
   mode = "wb"
 )
 ```
 
-The script below assumes the file lives at:
-
-```
-~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv
-```
-
-Adjust the path if you saved it elsewhere — in RStudio it's easiest to keep `lab8_gxe.R` and the `data/` folder inside an RStudio Project so that relative paths just work.
+In the rest of the lab, replace the path in `fread(...)` with the location you chose. Working inside an RStudio Project keeps things tidy: put `hrs_lab8.csv` next to `lab8_gxe.R` (or in a `data/` subfolder) and reference it with a relative path.
 
 ### 0.2 Install R packages (one-off)
 
@@ -68,7 +60,7 @@ library(data.table)
 library(ggplot2)
 library(interactions)
 
-d <- fread("~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv")
+d <- fread("hrs_lab8.csv")     # <-- adjust to your path
 str(d)
 summary(d[, .(BMI_AV, Age_AV, birth_year, pgs_bmi)])
 table(d$sex)
@@ -84,7 +76,14 @@ The variables are:
 | `Age_AV` | mean age (years) across the same waves |
 | `birth_year` | year of birth (1905–1980) |
 | `sex` | factor: `male`, `female` |
+| `raedyrs` | respondent's years of completed schooling (0–17) |
+| `rameduc` / `rafeduc` | mother's / father's years of completed schooling |
+| `smoke_last` | 1 if currently smoking at the **last** wave the respondent was surveyed (else 0) |
+| `drink_last` | 1 if currently drinks alcohol at the last wave |
+| `shlt_last` | self-rated health at the last wave: 1 = excellent, 5 = poor |
 | `pc1` … `pc10` | first 10 genetic PCs |
+
+> **Why "last" and not the average?** Smoking, drinking, and self-rated health change over the life course. The last available observation gives you the most recent state before the respondent dropped out / was censored, which is closer to the BMI we observe at later waves than a long-run average. (For a more careful treatment you would model these as time-varying — out of scope here.)
 
 > **Why standardise the PGS?** With $z$-scored PGS, $\beta_G$ is the change in BMI for a one-SD increase in genetic predisposition. This makes effects comparable across PGS, traits, and papers.
 
@@ -330,6 +329,53 @@ anova(m_gxe, m_3way)
 ```
 
 Interpret the three-way coefficient `pgs_bmi:by_c:sexfemale`. Does the obesogenic-environment effect on the BMI PGS look the same for men and women? Plot the predicted BMI by PGS, faceted by sex and split by birth-year tertile.
+
+---
+
+## 8. Optional extension: alternative environmental moderators
+
+Birth year is one specific environmental story (the post-war obesogenic shift). The dataset also gives you several other E candidates that have been shown to moderate the BMI PGS in the literature. Try at least one of these and compare the interaction term to Walter's $\beta_{GE} \approx 0.025$.
+
+| Variable | What it is | Hypothesised direction |
+|---|---|---|
+| `raedyrs` | respondent's years of schooling | PGS effect on BMI is *attenuated* at higher education (more compensatory behaviour) |
+| `rameduc` / `rafeduc` | parental education (early-life SES) | similar logic, but it's the *childhood* environment doing the work |
+| `smoke_last` | currently smokes (0/1) | smokers tend to be leaner — the PGS effect can look different by smoking status |
+| `drink_last` | currently drinks alcohol (0/1) | exploratory |
+| `shlt_last` | self-rated health (1 = excellent, 5 = poor) | strongly correlated with BMI; treat as a robustness check rather than a moderator |
+
+Generic recipe (replace `E` with the variable of choice):
+
+```r
+# centre/scale the moderator if continuous to keep coefficients interpretable
+d[, E := scale(raedyrs)]                  # example: own years of education
+
+fmla_E <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * E + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+
+m_E <- lm(fmla_E, data = d)
+coef(summary(m_E))[c("pgs_bmi", "E", "pgs_bmi:E"), ]
+
+interact_plot(m_E, pred = "pgs_bmi", modx = "E",
+              modx.values = c(-1, 0, 1),
+              x.label = "PGS-BMI (SD)", y.label = "Predicted BMI",
+              legend.main = "Education (SD)")
+```
+
+For a **binary** moderator (e.g. `smoke_last`), drop the `scale()` and `modx.values` defaults to `0`/`1`:
+
+```r
+fmla_S <- as.formula(paste(
+  "BMI_AV ~ pgs_bmi * smoke_last + birth_year + sex +",
+  paste(pcs, collapse = " + ")
+))
+m_S <- lm(fmla_S, data = d)
+coef(summary(m_S))[c("pgs_bmi", "smoke_last", "pgs_bmi:smoke_last"), ]
+```
+
+> **Caveat.** Unlike `birth_year`, these moderators are *not* exogenous — they are themselves outcomes of genes, environment, and choices. A G×E coefficient on `raedyrs` does not have the same causal status as a G×E on `birth_year`. Read the result as descriptive (does the PGS slope differ across groups?) not causal (does education *unlock* the PGS?).
 
 ---
 
