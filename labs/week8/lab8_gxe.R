@@ -32,13 +32,43 @@ ggplot(d, aes(birth_year)) +
   labs(x = "Year of birth", y = "Count") +
   theme_minimal()
 
+## --- 1.5 PC inspection: flag non-EUR individuals -----------------------
+
+pcs <- paste0("pc", 1:10)
+
+ggplot(d, aes(pc1, pc2)) +
+  geom_point(alpha = 0.4, size = 0.6, colour = "steelblue") +
+  labs(x = "PC1", y = "PC2",
+       title = "Genetic PCs - HRS lab subset") +
+  theme_minimal()
+
+PC  <- as.matrix(d[, ..pcs])
+mu  <- colMeans(PC)
+S   <- cov(PC)
+mhd <- mahalanobis(PC, center = mu, cov = S)
+
+cutoff <- qchisq(0.999, df = length(pcs))
+d[, pc_outlier := mhd > cutoff]
+print(table(d$pc_outlier))
+
+ggplot(d, aes(pc1, pc2, colour = pc_outlier)) +
+  geom_point(alpha = 0.5, size = 0.7) +
+  scale_colour_manual(values = c(`FALSE` = "steelblue", `TRUE` = "red"),
+                      labels = c(`FALSE` = "EUR-like", `TRUE` = "outlier")) +
+  labs(x = "PC1", y = "PC2", colour = NULL,
+       title = "PC outliers via Mahalanobis distance",
+       subtitle = sprintf("%d flagged of %d (chi-sq 99.9%% cutoff)",
+                          sum(d$pc_outlier), nrow(d))) +
+  theme_minimal()
+
+# Sensitivity subset (use d_eur in place of d below if you want to check)
+d_eur <- d[pc_outlier == FALSE]
+cat("After dropping PC outliers: n =", nrow(d_eur), "\n")
+
 ## --- 2. Main effect ----------------------------------------------------
 
-pcs <- c(paste0("pc1_5",  letters[1:5]),
-         paste0("pc6_10", letters[1:5]))
-
 fmla_main <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi + birth_year + Age_AV + sex +",
+  "BMI_AV ~ pgs_bmi + birth_year + sex +",
   paste(pcs, collapse = " + ")
 ))
 
@@ -51,7 +81,7 @@ coef(summary(m_main))["pgs_bmi", ]
 d[, by_c := birth_year - 1944]    # centre at the Walter pivot
 
 fmla_gxe <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * by_c + Age_AV + sex +",
+  "BMI_AV ~ pgs_bmi * by_c + sex +",
   paste(pcs, collapse = " + ")
 ))
 
@@ -121,7 +151,7 @@ ggplot(walter_df, aes(group, beta)) +
 ## --- 6. Optional 3-way: PGS x cohort x sex (Herd-style) ---------------
 
 fmla_3way <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * by_c * sex + Age_AV +",
+  "BMI_AV ~ pgs_bmi * by_c * sex +",
   paste(pcs, collapse = " + ")
 ))
 

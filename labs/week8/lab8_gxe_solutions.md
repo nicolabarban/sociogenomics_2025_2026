@@ -13,9 +13,9 @@ t value             : ~ 26
 p value             : < 1e-100
 ```
 
-A 1-SD higher PGS-BMI is associated with $\approx 1.5$ kg/m² higher mean BMI, controlling for age, sex, birth year, and 10 PCs.
+A 1-SD higher PGS-BMI is associated with $\approx 1.5$ kg/m² higher mean BMI, controlling for sex, birth year, and 10 PCs. (We drop `Age_AV` here: it is mechanically tied to `birth_year` in HRS and including both produces collinearity that distorts the cohort coefficient.)
 
-The $R^2$ of `m_main` is on the order of $0.10$. PGS alone (with controls) explains about 10% of the variance in BMI in this older sample — typical for current-generation BMI PGS.
+The $R^2$ of `m_main` is around $0.12$. PGS alone (with controls) explains $\approx 12\%$ of the variance in BMI in this older sample — typical for current-generation BMI PGS.
 
 ---
 
@@ -25,16 +25,17 @@ With `by_c = birth_year - 1944`:
 
 ```
                   Estimate   Std. Error   t value   p value
-pgs_bmi             1.602      0.061       26.4    < 1e-100
-by_c                0.059      0.018        3.3     ~ 0.001
-pgs_bmi:by_c        0.0253     0.0045       5.6    ~ 6e-08
+pgs_bmi             1.606      0.061       26.5    < 1e-100
+by_c                0.097      0.005       21.1    < 1e-90
+pgs_bmi:by_c        0.0250     0.0045       5.6    ~ 3e-08
 ```
 
 * For someone born in 1944, the PGS slope is $\approx 1.60$.
 * Each additional year of birth raises that slope by $\approx 0.025$ BMI units.
 * Across the 75-year span 1905→1980, the implied total shift in slope is about $0.025 \times 75 \approx 1.9$ — i.e., the PGS slope nearly *doubles* from oldest to youngest cohort.
+* The main effect of `by_c` ($\approx 0.097$) absorbs the secular obesity trend now that `Age_AV` is gone: BMI rises by about 1 kg/m² per decade of later birth.
 
-`anova(m_main, m_gxe)`: $F \approx 31$, $p \approx 6 \times 10^{-8}$. The interaction is a real signal.
+`anova(m_main, m_gxe)`: $F \approx 31$, $p \approx 3 \times 10^{-8}$. The interaction is a real signal.
 
 $\Delta R^2$ from adding the interaction: $\approx 0.0025$. **Tiny in variance, large in mechanism** — a classic feature of G$\times$E. The interaction barely moves $R^2$ but it changes who the coefficient applies to.
 

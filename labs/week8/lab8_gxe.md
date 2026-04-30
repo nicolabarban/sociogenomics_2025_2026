@@ -17,17 +17,33 @@ The lab covers:
 
 ## 0. Getting started
 
-This lab can be run on **Google Colab**, **Posit Cloud**, or any local **R** install (≥ 4.1). It does **not** need PLINK or PRSice — all the genetic work has already been done; we work directly with the pre-computed PGS.
+This lab is designed to be run **locally in RStudio** (R ≥ 4.1). It does **not** need PLINK or PRSice — all the genetic work has already been done; we work directly with the pre-computed PGS.
 
 ### 0.1 Get the data
 
-The dataset `hrs_lab8.csv` (≈ 1.3 MB) is **not** in the public GitHub repository because of the HRS data-use agreement. The instructor will share a private download link on the course Slack/Moodle. Save the file in a folder of your choice; the script below assumes:
+The dataset `hrs_lab8.csv` (≈ 1.3 MB) is **not** stored in the GitHub repository because of the HRS data-use agreement; the instructor distributes it via a private Dropbox link instead. Download it from:
+
+<https://www.dropbox.com/scl/fi/6t4iqjec1l08eodssbk8d/hrs_lab8.csv?rlkey=7qm0daymlogvart7yl41ppaj2&dl=0>
+
+Or, equivalently, fetch it from R (the `dl=1` suffix forces a direct download):
+
+```r
+dir.create("~/sociogenomics_2025_2026/labs/week8/data",
+           recursive = TRUE, showWarnings = FALSE)
+download.file(
+  "https://www.dropbox.com/scl/fi/6t4iqjec1l08eodssbk8d/hrs_lab8.csv?rlkey=7qm0daymlogvart7yl41ppaj2&dl=1",
+  "~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv",
+  mode = "wb"
+)
+```
+
+The script below assumes the file lives at:
 
 ```
 ~/sociogenomics_2025_2026/labs/week8/data/hrs_lab8.csv
 ```
 
-If you are on Colab, upload the file with `files.upload()` and adjust the path accordingly.
+Adjust the path if you saved it elsewhere — in RStudio it's easiest to keep `lab8_gxe.R` and the `data/` folder inside an RStudio Project so that relative paths just work.
 
 ### 0.2 Install R packages (one-off)
 
@@ -68,7 +84,7 @@ The variables are:
 | `Age_AV` | mean age (years) across the same waves |
 | `birth_year` | year of birth (1905–1980) |
 | `sex` | factor: `male`, `female` |
-| `pc1_5a` … `pc6_10e` | first 10 genetic PCs |
+| `pc1` … `pc10` | first 10 genetic PCs |
 
 > **Why standardise the PGS?** With $z$-scored PGS, $\beta_G$ is the change in BMI for a one-SD increase in genetic predisposition. This makes effects comparable across PGS, traits, and papers.
 
@@ -83,20 +99,86 @@ ggplot(d, aes(birth_year)) + geom_histogram(binwidth = 2, fill = "steelblue") +
 
 ---
 
+## 1.5 Inspect the genetic PCs and flag non-European individuals
+
+The HRS subset distributed for this lab was filtered to "European-ancestry" participants upstream — but **upstream filters can leak**: a few individuals with recent admixture or genotyping artefacts often slip through. Always verify with a PC plot before regressing on a PGS, because a PGS trained on EUR predicts much less well outside the cluster and can drag your interaction estimates around.
+
+### 1.5.1 PC1 vs PC2 scatter
+
+```r
+pcs <- paste0("pc", 1:10)
+
+ggplot(d, aes(pc1, pc2)) +
+  geom_point(alpha = 0.4, size = 0.6, colour = "steelblue") +
+  labs(x = "PC1", y = "PC2",
+       title = "Genetic PCs — HRS lab subset") +
+  theme_minimal()
+```
+
+You should see one tight blob centred near 0 (the EUR cluster) plus, possibly, a thin tail of points sitting away from the centroid.
+
+### 1.5.2 Identify outliers via Mahalanobis distance
+
+A simple, multivariate way to flag "off-cluster" individuals: compute the Mahalanobis distance of every person from the joint centre of the 10 PCs, and flag points beyond the 99.9th percentile of the expected $\chi^2_{10}$ distribution.
+
+```r
+PC <- as.matrix(d[, ..pcs])
+mu <- colMeans(PC)
+S  <- cov(PC)
+mhd <- mahalanobis(PC, center = mu, cov = S)
+
+cutoff <- qchisq(0.999, df = length(pcs))     # 99.9% under chi-sq with 10 df
+d[, pc_outlier := mhd > cutoff]
+table(d$pc_outlier)
+```
+
+> **Checkpoint.** With this cutoff you should flag **~300 individuals (3.5%)**. Under a strict multivariate-normal null we would expect only 0.1% — so the excess is signal: a mix of (a) genuinely non-EUR or admixed people slipping past the upstream filter, and (b) the well-known fact that genetic PCs have heavier tails than a Gaussian.
+
+Re-plot with outliers in red:
+
+```r
+ggplot(d, aes(pc1, pc2, colour = pc_outlier)) +
+  geom_point(alpha = 0.5, size = 0.7) +
+  scale_colour_manual(values = c(`FALSE` = "steelblue", `TRUE` = "red"),
+                      labels = c(`FALSE` = "EUR-like", `TRUE` = "outlier")) +
+  labs(x = "PC1", y = "PC2", colour = NULL,
+       title = "PC outliers via Mahalanobis distance",
+       subtitle = sprintf("%d flagged out of %d (chi-sq 99.9%% cutoff)",
+                          sum(d$pc_outlier), nrow(d))) +
+  theme_minimal()
+```
+
+> **What this is and isn't.** Mahalanobis-on-PCs flags points that are *unusual relative to this sample*. It does **not** tell you the ancestry of those points (East Asian? African? Recent admixture?) — for that you would need to project the PCs against a labelled reference panel like 1000 Genomes (as we did in Week 7). For our purposes — a sanity filter before running the G$\times$E regressions — Mahalanobis is enough.
+
+### 1.5.3 Re-run the analysis without outliers (sensitivity check)
+
+Drop the flagged individuals and keep going with a cleaner subset:
+
+```r
+d_eur <- d[pc_outlier == FALSE]
+nrow(d_eur)
+```
+
+Use `d_eur` in place of `d` in §§ 2–7 and check that the headline numbers ($\beta_{\text{PGS}} \approx 1.5$, $\beta_{GE} \approx 0.025$, the pre/post-1944 contrast) are essentially unchanged. If they move a lot, that is a hint that the outliers were doing real work in the original estimate.
+
+---
+
 ## 2. Main effect: does the PGS predict BMI?
 
 A baseline OLS without interaction:
 
 ```r
-pcs <- paste0(c("pc1_5", "pc6_10"), rep(letters[1:5], each = 2))
+pcs <- paste0("pc", 1:10)
 fmla_main <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi + birth_year + Age_AV + sex +",
+  "BMI_AV ~ pgs_bmi + birth_year + sex +",
   paste(pcs, collapse = " + ")
 ))
 
 m_main <- lm(fmla_main, data = d)
 coef(summary(m_main))["pgs_bmi", ]
 ```
+
+> **Why no `Age_AV` here?** `Age_AV` (mean age across HRS waves) is mechanically tied to `birth_year`: people born earlier are older at any given wave. Including both in the same regression introduces strong collinearity and can soak up the cohort effect we want to interpret. We keep `birth_year` (the cohort marker) and drop `Age_AV`.
 
 > **Checkpoint.** You should find $\beta_{\text{PGS}} \approx 1.5$ BMI units per SD of PGS, with $p < 10^{-100}$. A 1-SD higher PGS is associated with $\approx 1.5$ kg/m² higher BMI on average.
 
@@ -112,7 +194,7 @@ Walter's hypothesis: the slope of BMI on PGS depends on birth cohort. Centring b
 d[, by_c := birth_year - 1944]
 
 fmla_gxe <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * by_c + Age_AV + sex +",
+  "BMI_AV ~ pgs_bmi * by_c + sex +",
   paste(pcs, collapse = " + ")
 ))
 
@@ -238,7 +320,7 @@ Herd and colleagues showed that the PGS-EA × cohort pattern was strongly modera
 
 ```r
 fmla_3way <- as.formula(paste(
-  "BMI_AV ~ pgs_bmi * by_c * sex + Age_AV +",
+  "BMI_AV ~ pgs_bmi * by_c * sex +",
   paste(pcs, collapse = " + ")
 ))
 
