@@ -43,8 +43,18 @@ ggplot(d, aes(pgs_bmi)) +
        subtitle = "After standardisation: mean 0, SD 1") +
   theme_minimal()
 
-## --- 1.1 Binscatter: BMI vs PGS ---------------------------------------
+## --- 1.1 Scatter and binscatter: BMI vs PGS ---------------------------
 
+# Raw scatter (all individuals): dense cloud, hard to read
+ggplot(d, aes(pgs_bmi, BMI_AV)) +
+  geom_point(alpha = 0.15, size = 0.5, colour = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE,
+              colour = "firebrick", linewidth = 0.7) +
+  labs(x = "PGS-BMI (z-scored)", y = "BMI",
+       title = "Raw scatter: BMI by PGS-BMI") +
+  theme_minimal()
+
+# Binscatter: 25 equal-width PGS bins, mean BMI within each bin
 ggplot(d, aes(pgs_bmi, BMI_AV)) +
   stat_summary_bin(fun = mean, bins = 25, geom = "point",
                    colour = "steelblue", size = 2) +

@@ -107,9 +107,21 @@ ggplot(d, aes(pgs_bmi)) +
 
 The PGS histogram should look approximately Gaussian — that's the typical shape of a polygenic score (sum of many small allele effects, central limit theorem).
 
-### 1.1 Binscatter: BMI vs PGS
+### 1.1 Scatter and binscatter: BMI vs PGS
 
-A scatter of all 8,000+ points is too dense to read. A **binscatter** shows the same relationship cleanly: split the PGS into equal-width bins, average BMI within each bin, then plot the bin means with an OLS line through the raw data.
+Start with a **raw scatter** of every individual:
+
+```r
+ggplot(d, aes(pgs_bmi, BMI_AV)) +
+  geom_point(alpha = 0.15, size = 0.5, colour = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE,
+              colour = "firebrick", linewidth = 0.7) +
+  labs(x = "PGS-BMI (z-scored)", y = "BMI",
+       title = "Raw scatter: BMI by PGS-BMI") +
+  theme_minimal()
+```
+
+With 8,000+ points the cloud is dense and the underlying signal is hard to read by eye — only the OLS line betrays the positive trend. A **binscatter** shows the same relationship cleanly: split the PGS into equal-width bins, average BMI within each bin, then plot the bin means.
 
 ```r
 ggplot(d, aes(pgs_bmi, BMI_AV)) +
@@ -123,7 +135,7 @@ ggplot(d, aes(pgs_bmi, BMI_AV)) +
   theme_minimal()
 ```
 
-You should see an almost perfectly linear, positive relationship: each bin step up in PGS adds $\approx 1$–$1.5$ BMI units. This is the "main effect" we will quantify in § 2.
+The 25 bin means trace an almost perfectly linear, positive relationship: each bin step up in PGS adds $\approx 1$–$1.5$ BMI units. This is the "main effect" we will quantify in § 2.
 
 ---
 
