@@ -153,7 +153,46 @@ ggplot(d, aes(pc1, pc2)) +
   theme_minimal()
 ```
 
-You should see one tight blob centred near 0 (the EUR cluster) plus a tail of points sitting away from the centroid. To assign actual ancestry to those tail points you would need to project the PCs against a labelled reference panel like 1000 Genomes (as in Week 7). Here we just keep the PCs as regression controls — that is what they are designed to absorb.
+You should see one tight blob centred near 0 (the EUR cluster) plus a tail of points sitting away from the centroid.
+
+### 1.5.2 Distribution of PC1 and PC2 — flag extreme values
+
+Look at PC1 and PC2 marginally. Each has a long-tailed distribution: most people sit close to the centre, but a small fraction sit several standard deviations out. Those tail observations are very likely individuals whose genetic ancestry is unusual relative to the bulk of the sample (despite all of them self-reporting as non-Hispanic white).
+
+```r
+# Marginal histograms
+ggplot(d, aes(pc1)) + geom_histogram(bins = 60, fill = "steelblue") +
+  labs(x = "PC1", y = "Count") + theme_minimal()
+
+ggplot(d, aes(pc2)) + geom_histogram(bins = 60, fill = "steelblue") +
+  labs(x = "PC2", y = "Count") + theme_minimal()
+```
+
+A simple, transparent rule: flag anyone who is **more than 4 standard deviations from the mean on PC1 or PC2**.
+
+```r
+d[, pc_outlier := abs(scale(pc1)) > 4 | abs(scale(pc2)) > 4]
+table(d$pc_outlier)
+```
+
+> **Checkpoint.** With this rule you should flag $\approx 210$ individuals ($\approx 2.5\%$). Tighter (|z|>5) gives almost no one; looser (|z|>3) flags too many. |z|>4 is a reasonable working threshold.
+
+Re-plot PC1 vs PC2, highlighting the flagged points:
+
+```r
+ggplot(d, aes(pc1, pc2, colour = pc_outlier)) +
+  geom_point(alpha = 0.6, size = 0.7) +
+  scale_colour_manual(values = c(`FALSE` = "steelblue", `TRUE` = "red"),
+                      labels = c(`FALSE` = "EUR-like", `TRUE` = "PC outlier")) +
+  labs(x = "PC1", y = "PC2", colour = NULL,
+       title = "Possible non-EUR individuals (|z| > 4 on PC1 or PC2)",
+       subtitle = sprintf("%d flagged out of %d (%.1f%%)",
+                          sum(d$pc_outlier), nrow(d),
+                          100 * mean(d$pc_outlier))) +
+  theme_minimal()
+```
+
+> **What this is and isn't.** The threshold is purely descriptive: it isolates points sitting far from the EUR centroid in this sample. It does *not* tell you what ancestry those points belong to — for that you'd need to project against a labelled reference panel like 1000 Genomes (Week 7). It also does not "fix" the EUR-trained PGS — the PGS still works less well in those individuals. Treat the flag as a **sensitivity control**: re-run the regressions on `d[pc_outlier == FALSE]` and check that the headline numbers ($\beta_{\text{PGS}} \approx 1.5$, $\beta_{GE} \approx 0.025$) are essentially unchanged.
 
 ---
 

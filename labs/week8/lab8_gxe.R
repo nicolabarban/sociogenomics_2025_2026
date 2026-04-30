@@ -75,6 +75,29 @@ ggplot(d, aes(pc1, pc2)) +
        title = "Genetic PCs - HRS lab subset") +
   theme_minimal()
 
+## --- 1.5.2 Marginal distributions + flag extreme PC1/PC2 ---------------
+
+ggplot(d, aes(pc1)) + geom_histogram(bins = 60, fill = "steelblue") +
+  labs(x = "PC1", y = "Count") + theme_minimal()
+
+ggplot(d, aes(pc2)) + geom_histogram(bins = 60, fill = "steelblue") +
+  labs(x = "PC2", y = "Count") + theme_minimal()
+
+# Flag anyone > 4 SD from the mean on PC1 or PC2
+d[, pc_outlier := abs(scale(pc1)) > 4 | abs(scale(pc2)) > 4]
+print(table(d$pc_outlier))
+
+ggplot(d, aes(pc1, pc2, colour = pc_outlier)) +
+  geom_point(alpha = 0.6, size = 0.7) +
+  scale_colour_manual(values = c(`FALSE` = "steelblue", `TRUE` = "red"),
+                      labels = c(`FALSE` = "EUR-like", `TRUE` = "PC outlier")) +
+  labs(x = "PC1", y = "PC2", colour = NULL,
+       title = "Possible non-EUR individuals (|z| > 4 on PC1 or PC2)",
+       subtitle = sprintf("%d flagged out of %d (%.1f%%)",
+                          sum(d$pc_outlier), nrow(d),
+                          100 * mean(d$pc_outlier))) +
+  theme_minimal()
+
 ## --- 2. Main effect ----------------------------------------------------
 
 fmla_main <- as.formula(paste(
