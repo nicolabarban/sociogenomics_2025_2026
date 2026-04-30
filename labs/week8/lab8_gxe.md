@@ -143,8 +143,6 @@ The 25 bin means trace an almost perfectly linear, positive relationship: each b
 
 The HRS subset distributed for this lab was filtered to "European-ancestry" participants upstream — but **upstream filters can leak**: a few individuals with recent admixture or genotyping artefacts often slip through. Always verify with a PC plot before regressing on a PGS, because a PGS trained on EUR predicts much less well outside the cluster and can drag your interaction estimates around.
 
-### 1.5.1 PC1 vs PC2 scatter
-
 ```r
 pcs <- paste0("pc", 1:10)
 
@@ -155,51 +153,7 @@ ggplot(d, aes(pc1, pc2)) +
   theme_minimal()
 ```
 
-You should see one tight blob centred near 0 (the EUR cluster) plus, possibly, a thin tail of points sitting away from the centroid.
-
-### 1.5.2 Identify outliers via Mahalanobis distance
-
-A simple, multivariate way to flag "off-cluster" individuals: compute the Mahalanobis distance of every person from the joint centre of the 10 PCs, and flag points beyond the 99.9th percentile of the expected $\chi^2_{10}$ distribution.
-
-```r
-PC <- as.matrix(d[, ..pcs])
-mu <- colMeans(PC)
-S  <- cov(PC)
-mhd <- mahalanobis(PC, center = mu, cov = S)
-
-cutoff <- qchisq(0.999, df = length(pcs))     # 99.9% under chi-sq with 10 df
-d[, pc_outlier := mhd > cutoff]
-table(d$pc_outlier)
-```
-
-> **Checkpoint.** With this cutoff you should flag **~300 individuals (3.5%)**. Under a strict multivariate-normal null we would expect only 0.1% — so the excess is signal: a mix of (a) genuinely non-EUR or admixed people slipping past the upstream filter, and (b) the well-known fact that genetic PCs have heavier tails than a Gaussian.
-
-Re-plot with outliers in red:
-
-```r
-ggplot(d, aes(pc1, pc2, colour = pc_outlier)) +
-  geom_point(alpha = 0.5, size = 0.7) +
-  scale_colour_manual(values = c(`FALSE` = "steelblue", `TRUE` = "red"),
-                      labels = c(`FALSE` = "EUR-like", `TRUE` = "outlier")) +
-  labs(x = "PC1", y = "PC2", colour = NULL,
-       title = "PC outliers via Mahalanobis distance",
-       subtitle = sprintf("%d flagged out of %d (chi-sq 99.9%% cutoff)",
-                          sum(d$pc_outlier), nrow(d))) +
-  theme_minimal()
-```
-
-> **What this is and isn't.** Mahalanobis-on-PCs flags points that are *unusual relative to this sample*. It does **not** tell you the ancestry of those points (East Asian? African? Recent admixture?) — for that you would need to project the PCs against a labelled reference panel like 1000 Genomes (as we did in Week 7). For our purposes — a sanity filter before running the G$\times$E regressions — Mahalanobis is enough.
-
-### 1.5.3 Re-run the analysis without outliers (sensitivity check)
-
-Drop the flagged individuals and keep going with a cleaner subset:
-
-```r
-d_eur <- d[pc_outlier == FALSE]
-nrow(d_eur)
-```
-
-Use `d_eur` in place of `d` in §§ 2–7 and check that the headline numbers ($\beta_{\text{PGS}} \approx 1.5$, $\beta_{GE} \approx 0.025$, the pre/post-1944 contrast) are essentially unchanged. If they move a lot, that is a hint that the outliers were doing real work in the original estimate.
+You should see one tight blob centred near 0 (the EUR cluster) plus a tail of points sitting away from the centroid. To assign actual ancestry to those tail points you would need to project the PCs against a labelled reference panel like 1000 Genomes (as in Week 7). Here we just keep the PCs as regression controls — that is what they are designed to absorb.
 
 ---
 
