@@ -62,3 +62,7 @@
 * [R script](labs/week8/lab8_gxe.R)
 * [Solutions](labs/week8/lab8_gxe_solutions.md)
 * Data: `hrs_lab8.csv` (HRS subset, distributed via course Slack/Moodle — not on GitHub)
+
+## Week 10 — Lab recap & Final Report pipeline
+
+* [Recap — every command you need for the Final Report](labs/week10/recap.md)
