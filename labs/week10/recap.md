@@ -238,9 +238,14 @@ dev.off()
 
 ## Part D — Polygenic score with PRSice-2 (Lab 6)
 
+PRSice is shipped in `data/PRSice/`:
+
+- `PRSice_mac` — the Mac binary (x86_64, runs on Apple Silicon via Rosetta)
+- `PRSice.R` — the R wrapper
+
 ```bash
-PRSICE_BIN="$HOME/PRSice/PRSice_linux"
-PRSICE_R="$HOME/PRSice/PRSice.R"
+PRSICE_BIN="../data/PRSice/PRSice_mac"      # adjust to where you launch from
+PRSICE_R="../data/PRSice/PRSice.R"
 
 Rscript "$PRSICE_R" \
     --prsice "$PRSICE_BIN" \
@@ -302,35 +307,20 @@ summary(fit)
 
 ### Interaction plot
 
-Predicted height vs PGS by gender, holding age at the sample mean and PCs at 0:
+Same idiom as Lab 8 — use `interact_plot()` from the **interactions** package:
 
 ```r
-grid <- expand.grid(
-  PRS_z = seq(-3, 3, by = 0.1),
-  sex   = c(1, 2),
-  age   = mean(d$age),
-  PC1 = 0, PC2 = 0, PC3 = 0, PC4 = 0, PC5 = 0,
-  PC6 = 0, PC7 = 0, PC8 = 0, PC9 = 0, PC10 = 0
-)
-pred <- predict(fit, newdata = grid, interval = "confidence")
-grid <- cbind(grid, pred)
+# install.packages(c("interactions", "jtools"))
+library(interactions)
 
-grid$sex_label <- factor(grid$sex,
-                         levels = c(1, 2),
-                         labels = c("Male", "Female"))
-
-p_gxe <- ggplot(grid, aes(PRS_z, fit, colour = sex_label, fill = sex_label)) +
-  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.18, colour = NA) +
-  geom_line(linewidth = 1) +
-  scale_colour_manual(values = c("Male" = "#1F3A5F", "Female" = "#C0392B")) +
-  scale_fill_manual  (values = c("Male" = "#1F3A5F", "Female" = "#C0392B")) +
-  labs(x = "PGS (standardised)", y = "Predicted height (cm)",
-       colour = NULL, fill = NULL,
-       title = "G x E: PGS x gender on height",
-       subtitle = "Predicted height at mean age, PCs set to 0") +
-  theme_minimal(base_size = 11)
-
-ggsave("fig_gxe.png", p_gxe, width = 6.5, height = 4.5, dpi = 150)
+interact_plot(fit,
+              pred = "PRS_z", modx = "sex",
+              modx.values = c(1, 2),
+              modx.labels = c("Male", "Female"),
+              interval = TRUE, int.width = 0.95,
+              x.label = "PGS (SD)",
+              y.label = "Predicted height (cm)",
+              legend.main = "Gender")
 ```
 
 ### Reading the sign of β₃
