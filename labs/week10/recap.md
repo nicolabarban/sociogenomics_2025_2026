@@ -9,7 +9,7 @@ title: "Lab Recap & Final Report Pipeline"
 ### Step 1. LD-prune SNPs (for a clean PCA)
 
 ```bash
-plink2 --bfile 1kg_hm3_anon \
+plink2 --bfile hapmap3 \
        --maf 0.01 --geno 0.05 \
        --indep-pairwise 200 50 0.2 \
        --out work_prune
@@ -18,7 +18,7 @@ plink2 --bfile 1kg_hm3_anon \
 ### Step 2. Run PCA on the pruned set
 
 ```bash
-plink2 --bfile 1kg_hm3_anon \
+plink2 --bfile hapmap3 \
        --extract work_prune.prune.in \
        --pca 10 \
        --out work_pca
@@ -33,37 +33,38 @@ cat work_pca.eigenval           # % variance per PC
 library(ggplot2)
 library(dplyr)
 
-ev  <- read.table("work_pca.eigenvec",
-                  header = FALSE,
-                  col.names = c("FID", "IID", paste0("PC", 1:10)))
-ref <- read.table("reference_panel.txt",
-                  header = TRUE)          # FID IID superpop (40 labels)
+# PCA scores
+ev <- read.table("work_pca.eigenvec",
+                 header = FALSE,
+                 col.names = c("FID", "IID", paste0("PC", 1:10)))
 
-# Tag the 40 reference individuals by their super-population
-ev <- merge(ev, ref[, c("IID", "superpop")], by = "IID", all.x = TRUE)
+# 1000G super-population labels (tab-separated, with spaces in some column names)
+geo <- read.table("1kg_samples.txt", sep = "\t", header = TRUE)
+
+# 1kg_samples.txt has 'Sample.name' — match to our IID
+ev <- merge(ev, geo[, c("Sample.name", "Superpopulation.code")],
+            by.x = "IID", by.y = "Sample.name", all.x = TRUE)
+names(ev)[names(ev) == "Superpopulation.code"] <- "superpop"
 ev$is_ref <- !is.na(ev$superpop)
 
-# Quick look at the cloud
-ggplot(ev, aes(PC1, PC2)) +
-  geom_point(aes(colour = is.na(superpop)), alpha = 0.4) +
-  geom_point(data = subset(ev, !is.na(superpop)),
-             aes(colour = superpop), size = 3) +
+# Quick look at the cloud, coloured by known super-population
+ggplot(ev, aes(PC1, PC2, colour = superpop)) +
+  geom_point(alpha = 0.6) +
   scale_colour_manual(values = c("EUR" = "#1F3A5F", "AFR" = "#C0392B",
                                  "EAS" = "#2A9D8F", "AMR" = "#E9A23B",
-                                 "TRUE" = "grey80", "FALSE" = "grey80")) +
-  labs(title = "PCA: all individuals + 40 labelled references",
+                                 "SAS" = "#8E44AD")) +
+  labs(title = "PCA with 1000G super-population labels",
        x = "PC1", y = "PC2") +
   theme_minimal()
 
-# k-means clustering on PC1..PC5 with 4 clusters (we expect 4 super-pops)
+# k-means clustering on PC1..PC5 with 5 clusters (5 super-populations)
 pc_cols <- paste0("PC", 1:5)
 
 set.seed(42)
-km <- kmeans(ev[, pc_cols], centers = 4, nstart = 25)
+km <- kmeans(ev[, pc_cols], centers = 5, nstart = 25)
 ev$cluster <- km$cluster
 
-# Label each cluster with the most-frequent super-population among
-# the reference individuals that fell into it.
+# Label each cluster with the most-frequent known super-population.
 cluster_to_pop <- ev %>%
   filter(is_ref) %>%
   count(cluster, superpop) %>%
@@ -73,26 +74,26 @@ cluster_to_pop <- ev %>%
   rename(pred_pop = superpop)
 
 ev <- merge(ev, cluster_to_pop, by = "cluster", all.x = TRUE)
-
 table(ev$pred_pop)
 
-# Save EUR IDs in PLINK keep format
-my_eur <- subset(ev, pred_pop == "EUR", select = c("FID", "IID"))
-write.table(my_eur, "my_eur_ids.txt",
-            sep = "\t", quote = FALSE,
+# Save EUR-like individuals in PLINK keep format
+eur_keep <- subset(ev, pred_pop == "EUR", select = c("FID", "IID"))
+write.table(eur_keep, "samples_EUR_like.txt",
+            sep = " ", quote = FALSE,
             row.names = FALSE, col.names = FALSE)
-cat("EUR retained:", nrow(my_eur), "\n")
+cat("EUR retained:", nrow(eur_keep), "\n")
 
 # Classified scatter for the report
 ggplot(ev, aes(PC1, PC2, colour = pred_pop)) +
   geom_point(alpha = 0.6) +
   scale_colour_manual(values = c("EUR" = "#1F3A5F", "AFR" = "#C0392B",
-                                 "EAS" = "#2A9D8F", "AMR" = "#E9A23B")) +
-  labs(title = "Predicted super-population", colour = NULL) +
+                                 "EAS" = "#2A9D8F", "AMR" = "#E9A23B",
+                                 "SAS" = "#8E44AD")) +
+  labs(title = "Predicted super-population (k-means)", colour = NULL) +
   theme_minimal()
 ```
 
-**Required deliverable:** a PCA plot with the 40 labelled references overlaid, the predicted super-population scatter, a count of how many individuals you classified as EUR, the file `my_eur_ids.txt`, and 3–5 sentences on *why* a single-ancestry GWAS matters.
+**Required deliverable:** a PCA plot coloured by 1000G super-population, the k-means-predicted classification scatter, a count of how many individuals you classified as EUR, the file `samples_EUR_like.txt`, and 3–5 sentences on *why* a single-ancestry GWAS matters.
 
 ---
 
@@ -109,8 +110,8 @@ Apply the canonical filters on **the EUR subset only**:
 | Relatedness ϕ̂ < 0.1 | `--rel-cutoff 0.1` | Drop one of each related pair (independence assumption) |
 
 ```bash
-plink2 --bfile 1kg_hm3_anon \
-       --keep my_eur_ids.txt \
+plink2 --bfile hapmap3 \
+       --keep samples_EUR_like.txt \
        --maf 0.05 \
        --mind 0.05 \
        --geno 0.05 \
