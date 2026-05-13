@@ -65,4 +65,4 @@
 
 ## Week 10 — Lab recap & Final Report pipeline
 
-* [Recap — every command you need for the Final Report](labs/week10/recap.md)
+* [Recap and Final Report pipeline](labs/week10/recap.md)
