@@ -176,8 +176,6 @@ write.table(cov_pc[, c("FID","IID","age","sex", paste0("PC", 1:10))],
             "covariates_with_pcs.txt",
             sep = "\t", quote = FALSE,
             row.names = FALSE, col.names = TRUE)
-
-cat("Covariate file rows:", nrow(cov_pc), "\n")
 ```
 
 ---
