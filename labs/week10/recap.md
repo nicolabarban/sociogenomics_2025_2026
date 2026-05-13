@@ -4,14 +4,18 @@ title: "Lab Recap & Final Report Pipeline"
 
 # Lab Recap and Final Report Pipeline
 
-We use the `1kg_height` PLINK fileset (1.092 individuals from 1000G, 851k SNPs, with simulated height in the phenotype column of the `.fam`) and `1kg_samples.txt` for the super-population labels.
+We use:
+
+- the `1kg_hm3` PLINK fileset (1.092 individuals from 1000G, 851k SNPs, rs-IDs),
+- `height_cm.phen` — the simulated height phenotype (FID IID HEIGHT, no header),
+- `1kg_samples.txt` — 1000G super-population labels.
 
 ## Part A — Ancestry and population structure (Lab 4)
 
 ### Step 1. LD-prune SNPs (for a clean PCA)
 
 ```bash
-plink --bfile 1kg_height \
+plink --bfile 1kg_hm3 \
       --maf 0.01 --geno 0.05 \
       --indep-pairwise 200 50 0.2 \
       --out work_prune
@@ -20,7 +24,7 @@ plink --bfile 1kg_height \
 ### Step 2. Run PCA on the pruned set
 
 ```bash
-plink --bfile 1kg_height \
+plink --bfile 1kg_hm3 \
       --extract work_prune.prune.in \
       --pca 10 \
       --out work_pca
@@ -59,7 +63,7 @@ ggplot(ev, aes(PC1, PC2, colour = superpop)) +
   theme_minimal()
 
 # k-means clustering on PC1..PC5 with 4 clusters
-# (1kg_height contains AFR, AMR, EAS, EUR — no SAS)
+# (1kg_hm3 contains AFR, AMR, EAS, EUR — no SAS)
 pc_cols <- paste0("PC", 1:5)
 
 set.seed(42)
@@ -115,14 +119,14 @@ Apply the canonical filters on **the EUR subset only**:
 
 ```bash
 # Pass 1: write the list of unrelated individuals
-plink --bfile 1kg_height \
+plink --bfile 1kg_hm3 \
       --keep samples_EUR_like.txt \
       --maf 0.05 --mind 0.05 --geno 0.05 --hwe 1e-5 \
       --rel-cutoff 0.1 \
       --out eur_unrel
 
 # Pass 2: produce the QC'd binary fileset
-plink --bfile 1kg_height \
+plink --bfile 1kg_hm3 \
       --keep eur_unrel.rel.id \
       --maf 0.05 --mind 0.05 --geno 0.05 --hwe 1e-5 \
       --make-bed --out eur_qc
@@ -151,11 +155,11 @@ plink --bfile eur_qc \
 
 ## Build a covariate file
 
-`1kg_height` has the height phenotype in the `.fam` file (column 6) and sex in column 5. We need to add **age** as a covariate — `1kg_height` does not ship with age, so we synthesise a uniform age.
+`1kg_hm3` has sex in the `.fam` (column 5) but no age and no phenotype. We synthesise an age, read height from `height_cm.phen`, and merge everything together with the within-EUR PCs.
 
 ```r
 fam <- read.table("eur_qc.fam", header = FALSE,
-                  col.names = c("FID","IID","PAT","MAT","SEX","height"))
+                  col.names = c("FID","IID","PAT","MAT","SEX","PHENO"))
 
 # Use sex from the .fam (1 = male, 2 = female; drop unknowns)
 fam <- subset(fam, SEX %in% c(1, 2))
@@ -165,12 +169,19 @@ fam$sex <- fam$SEX
 set.seed(2026)
 fam$age <- runif(nrow(fam), 25, 75)
 
+# Read height from the phenotype file
+phe <- read.table("height_cm.phen", header = FALSE,
+                  col.names = c("FID","IID","height"))
+
 # Merge in the within-EUR PCs
 pcs <- read.table("eur_pca.eigenvec",
                   header = FALSE,
                   col.names = c("FID", "IID", paste0("PC", 1:10)))
-cov_pc <- merge(fam[, c("FID","IID","age","sex","height")],
-                pcs[, c("IID", paste0("PC", 1:10))], by = "IID")
+
+cov_pc <- Reduce(function(a, b) merge(a, b, by = c("FID","IID")),
+                 list(fam[, c("FID","IID","age","sex")],
+                      phe,
+                      pcs[, c("FID","IID", paste0("PC", 1:10))]))
 
 write.table(cov_pc[, c("FID","IID","age","sex", paste0("PC", 1:10))],
             "covariates_with_pcs.txt",
@@ -182,13 +193,14 @@ write.table(cov_pc[, c("FID","IID","age","sex", paste0("PC", 1:10))],
 
 ## Part C — GWAS (Lab 4)
 
-Height is already in `eur_qc.fam` (column 6), so plink picks it up automatically as the phenotype.
+The phenotype lives in `height_cm.phen`; we pass it to plink with `--pheno`.
 
 ### Step 1. GWAS without covariates
 
 ```bash
 plink --bfile eur_qc \
       --chr 1-22 \
+      --pheno height_cm.phen \
       --linear \
       --out gwas_nocov
 ```
@@ -198,6 +210,7 @@ plink --bfile eur_qc \
 ```bash
 plink --bfile eur_qc \
       --chr 1-22 \
+      --pheno height_cm.phen \
       --linear hide-covar \
       --covar covariates_with_pcs.txt \
       --covar-name age,sex,PC1-PC10 \
@@ -251,16 +264,22 @@ Rscript "$PRSICE_R" \
     --prsice "$PRSICE_BIN" \
     --base Height_GWAS_sumstats.txt \
     --target eur_qc \
+    --pheno height_cm.phen --pheno-col height \
     --binary-target F \
     --cov covariates_with_pcs.txt \
-    --cov-col age,sex,PC1-PC10 \
+    --cov-col age,sex,@PC[1-10] \
     --clump-kb 250 --clump-r2 0.1 \
     --bar-levels 0.005,0.05,0.5,1 \
     --fastscore \
     --out prsice_height
 ```
 
-PRSice picks up the phenotype from `eur_qc.fam` automatically. It writes:
+Notes on the syntax:
+
+- `@PC[1-10]` is PRSice's shorthand for `PC1,PC2,...,PC10` — PLINK's `PC1-PC10` range is **not** understood by PRSice.
+- The phenotype file `height_cm.phen` has no header, so we name the trait `height` here.
+
+PRSice writes:
 
 - `prsice_height.summary` — winning p-threshold and R² across thresholds
 - `prsice_height.best` — per-individual PGS at the best threshold
@@ -271,11 +290,11 @@ Incremental R² of the PGS over a covariates-only model:
 ```r
 prs <- read.table("prsice_height.best",         header = TRUE)  # FID IID In_Regression PRS
 cov <- read.table("covariates_with_pcs.txt",    header = TRUE)
-fam <- read.table("eur_qc.fam", header = FALSE,
-                  col.names = c("FID","IID","PAT","MAT","SEX","height"))
+phe <- read.table("height_cm.phen", header = FALSE,
+                  col.names = c("FID","IID","height"))
 
 d <- Reduce(function(a, b) merge(a, b, by = c("FID","IID")),
-            list(prs, cov, fam[, c("FID","IID","height")]))
+            list(prs, cov, phe))
 d$PRS_z <- as.numeric(scale(d$PRS))
 
 m0 <- lm(height ~ age + sex + PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
