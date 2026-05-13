@@ -257,27 +257,24 @@ PRSice is shipped in `data/PRSice/`:
 - `PRSice.R` — the R wrapper
 
 ```bash
-PRSICE_BIN="../data/PRSice/PRSice_mac"      # adjust to where you launch from
-PRSICE_R="../data/PRSice/PRSice.R"
+PRSICE_BIN="PRSice_mac"
+PRSICE_R="PRSice.R"
 
 Rscript "$PRSICE_R" \
     --prsice "$PRSICE_BIN" \
     --base Height_GWAS_sumstats.txt \
     --target eur_qc \
-    --pheno height_cm.phen --pheno-col height \
+    --pheno height_cm.phen \
     --binary-target F \
     --cov covariates_with_pcs.txt \
-    --cov-col age,sex,@PC[1-10] \
+    --cov-col age,sex,PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10 \
     --clump-kb 250 --clump-r2 0.1 \
     --bar-levels 0.005,0.05,0.5,1 \
     --fastscore \
     --out prsice_height
 ```
 
-Notes on the syntax:
-
-- `@PC[1-10]` is PRSice's shorthand for `PC1,PC2,...,PC10` — PLINK's `PC1-PC10` range is **not** understood by PRSice.
-- The phenotype file `height_cm.phen` has no header, so we name the trait `height` here.
+Note: list the PCs explicitly (`PC1,PC2,...,PC10`). PRSice does not parse PLINK's `PC1-PC10` range syntax.
 
 PRSice writes:
 
