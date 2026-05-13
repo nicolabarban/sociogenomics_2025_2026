@@ -4,27 +4,29 @@ title: "Lab Recap & Final Report Pipeline"
 
 # Lab Recap and Final Report Pipeline
 
+We use the `1kg_height` PLINK fileset (1.092 individuals from 1000G, 851k SNPs, with simulated height in the phenotype column of the `.fam`) and `1kg_samples.txt` for the super-population labels.
+
 ## Part A — Ancestry and population structure (Lab 4)
 
 ### Step 1. LD-prune SNPs (for a clean PCA)
 
 ```bash
-plink2 --bfile hapmap3 \
-       --maf 0.01 --geno 0.05 \
-       --indep-pairwise 200 50 0.2 \
-       --out work_prune
+plink --bfile 1kg_height \
+      --maf 0.01 --geno 0.05 \
+      --indep-pairwise 200 50 0.2 \
+      --out work_prune
 ```
 
 ### Step 2. Run PCA on the pruned set
 
 ```bash
-plink2 --bfile hapmap3 \
-       --extract work_prune.prune.in \
-       --pca 10 \
-       --out work_pca
+plink --bfile 1kg_height \
+      --extract work_prune.prune.in \
+      --pca 10 \
+      --out work_pca
 
 head -3 work_pca.eigenvec       # FID IID PC1 PC2 ... PC10
-cat work_pca.eigenval           # % variance per PC
+cat work_pca.eigenval           # eigenvalues
 ```
 
 ### Step 3. Classify ancestry in R
@@ -33,21 +35,20 @@ cat work_pca.eigenval           # % variance per PC
 library(ggplot2)
 library(dplyr)
 
-# PCA scores
 ev <- read.table("work_pca.eigenvec",
                  header = FALSE,
                  col.names = c("FID", "IID", paste0("PC", 1:10)))
 
-# 1000G super-population labels (tab-separated, with spaces in some column names)
+# 1000G super-population labels
 geo <- read.table("1kg_samples.txt", sep = "\t", header = TRUE)
 
-# 1kg_samples.txt has 'Sample.name' — match to our IID
+# Merge: 1kg_samples.txt has 'Sample.name' — match on IID
 ev <- merge(ev, geo[, c("Sample.name", "Superpopulation.code")],
             by.x = "IID", by.y = "Sample.name", all.x = TRUE)
 names(ev)[names(ev) == "Superpopulation.code"] <- "superpop"
 ev$is_ref <- !is.na(ev$superpop)
 
-# Quick look at the cloud, coloured by known super-population
+# PCA cloud coloured by known super-population
 ggplot(ev, aes(PC1, PC2, colour = superpop)) +
   geom_point(alpha = 0.6) +
   scale_colour_manual(values = c("EUR" = "#1F3A5F", "AFR" = "#C0392B",
@@ -57,11 +58,12 @@ ggplot(ev, aes(PC1, PC2, colour = superpop)) +
        x = "PC1", y = "PC2") +
   theme_minimal()
 
-# k-means clustering on PC1..PC5 with 5 clusters (5 super-populations)
+# k-means clustering on PC1..PC5 with 4 clusters
+# (1kg_height contains AFR, AMR, EAS, EUR — no SAS)
 pc_cols <- paste0("PC", 1:5)
 
 set.seed(42)
-km <- kmeans(ev[, pc_cols], centers = 5, nstart = 25)
+km <- kmeans(ev[, pc_cols], centers = 4, nstart = 25)
 ev$cluster <- km$cluster
 
 # Label each cluster with the most-frequent known super-population.
@@ -107,17 +109,23 @@ Apply the canonical filters on **the EUR subset only**:
 | Individual call rate > 95% | `--mind 0.05` | Drop badly-genotyped individuals |
 | SNP call rate > 95% | `--geno 0.05` | Drop badly-genotyped SNPs |
 | HWE p > 10⁻⁵ | `--hwe 1e-5` | Drop SNPs with implausible allele frequencies (genotyping errors) |
-| Relatedness (KING ϕ̂ < 0.0884, ~3rd-degree) | `--king-cutoff 0.0884` | Drop one of each related pair (independence assumption) |
+| Relatedness ϕ̂ < 0.1 | `--rel-cutoff 0.1` | Drop one of each related pair (independence assumption) |
+
+`--rel-cutoff` cannot be combined with `--make-bed` in plink 1.9, so we do two passes:
 
 ```bash
-plink2 --bfile hapmap3 \
-       --keep samples_EUR_like.txt \
-       --maf 0.05 \
-       --mind 0.05 \
-       --geno 0.05 \
-       --hwe 1e-5 \
-       --king-cutoff 0.0884 \
-       --make-bed --out eur_qc
+# Pass 1: write the list of unrelated individuals
+plink --bfile 1kg_height \
+      --keep samples_EUR_like.txt \
+      --maf 0.05 --mind 0.05 --geno 0.05 --hwe 1e-5 \
+      --rel-cutoff 0.1 \
+      --out eur_unrel
+
+# Pass 2: produce the QC'd binary fileset
+plink --bfile 1kg_height \
+      --keep eur_unrel.rel.id \
+      --maf 0.05 --mind 0.05 --geno 0.05 --hwe 1e-5 \
+      --make-bed --out eur_qc
 
 wc -l eur_qc.{bim,fam}
 ```
@@ -126,140 +134,109 @@ wc -l eur_qc.{bim,fam}
 
 ### PCA on the QC'd EUR subset (for GWAS covariates)
 
-The PCs we computed in Part A separate the *super-populations*. As covariates inside a single ancestry they are nearly collinear (and PLINK will refuse to run). Compute a fresh PCA on `eur_qc` and use **those** PCs in the GWAS:
+The PCs we computed in Part A separate the *super-populations*. As covariates inside a single ancestry they are nearly collinear. Compute a fresh PCA on `eur_qc` and use **those** PCs in the GWAS:
 
 ```bash
-plink2 --bfile eur_qc \
-       --indep-pairwise 200 50 0.2 \
-       --out eur_prune
+plink --bfile eur_qc \
+      --indep-pairwise 200 50 0.2 \
+      --out eur_prune
 
-plink2 --bfile eur_qc \
-       --extract eur_prune.prune.in \
-       --pca 10 \
-       --out eur_pca
+plink --bfile eur_qc \
+      --extract eur_prune.prune.in \
+      --pca 10 \
+      --out eur_pca
 ```
 
 ---
 
-## Simulate covariates and a phenotype
+## Build a covariate file
 
-`hapmap3` ships only with sex (column 5 of the `.fam`). We **synthesise age** and
-build a fake covariate file, then simulate a continuous trait $Y_{sim}$.
+`1kg_height` has the height phenotype in the `.fam` file (column 6) and sex in column 5. We need to add **age** as a covariate — `1kg_height` does not ship with age, so we synthesise a uniform age.
 
 ```r
 fam <- read.table("eur_qc.fam", header = FALSE,
-                  col.names = c("FID", "IID", "PAT", "MAT", "SEX", "PHENO"))
+                  col.names = c("FID","IID","PAT","MAT","SEX","height"))
 
-# Keep only individuals with a valid sex (1 = male, 2 = female)
+# Use sex from the .fam (1 = male, 2 = female; drop unknowns)
 fam <- subset(fam, SEX %in% c(1, 2))
 fam$sex <- fam$SEX
 
-# Synthesise an age (uniform 25-75)
+# Synthesise a plausible adult age (uniform 25-75)
 set.seed(2026)
 fam$age <- runif(nrow(fam), 25, 75)
 
-# Save the covariate file
-write.table(fam[, c("FID", "IID", "age", "sex")],
-            "covariates.txt",
-            sep = "\t", quote = FALSE,
-            row.names = FALSE, col.names = TRUE)
-
-# Simulate Y_sim = 0.30 * age + 0.50 * sex + Gaussian noise
-fam$Ysim <- 0.30 * fam$age + 0.50 * fam$sex + rnorm(nrow(fam), mean = 0, sd = 5)
-
-write.table(fam[, c("FID", "IID", "Ysim")],
-            "pheno_sim.txt",
-            sep = "\t", quote = FALSE,
-            row.names = FALSE, col.names = TRUE)
-
-summary(fam$Ysim)
-```
-
-`covariates.txt` and `pheno_sim.txt` now have one row per QC'd individual and are used for the rest of the pipeline.
-
----
-
-## Part C — GWAS (Lab 4)
-
-### Step 1. GWAS without covariates
-
-```bash
-plink2 --bfile eur_qc \
-       --chr 1-22 \
-       --pheno pheno_sim.txt --pheno-name Ysim \
-       --glm allow-no-covars \
-       --out gwas_nocov
-```
-
-### Step 2. Merge within-EUR PCs into the covariate file (in R)
-
-```r
-cov <- read.table("covariates.txt", header = TRUE)
-ev  <- read.table("eur_pca.eigenvec",
+# Merge in the within-EUR PCs
+pcs <- read.table("eur_pca.eigenvec",
                   header = FALSE,
                   col.names = c("FID", "IID", paste0("PC", 1:10)))
-
-cov_pc <- merge(cov, ev[, c("IID", paste0("PC", 1:10))], by = "IID")
+cov_pc <- merge(fam[, c("FID","IID","age","sex","height")],
+                pcs[, c("IID", paste0("PC", 1:10))], by = "IID")
 
 write.table(cov_pc[, c("FID","IID","age","sex", paste0("PC", 1:10))],
             "covariates_with_pcs.txt",
             sep = "\t", quote = FALSE,
             row.names = FALSE, col.names = TRUE)
+
+cat("Covariate file rows:", nrow(cov_pc), "\n")
 ```
 
-### Step 3. GWAS with covariates
+---
+
+## Part C — GWAS (Lab 4)
+
+Height is already in `eur_qc.fam` (column 6), so plink picks it up automatically as the phenotype.
+
+### Step 1. GWAS without covariates
 
 ```bash
-plink2 --bfile eur_qc \
-       --chr 1-22 \
-       --pheno pheno_sim.txt --pheno-name Ysim \
-       --covar covariates_with_pcs.txt \
-       --covar-name age,sex,PC1-PC10 \
-       --covar-variance-standardize \
-       --glm hide-covar \
-       --out gwas_cov
+plink --bfile eur_qc \
+      --chr 1-22 \
+      --linear \
+      --out gwas_nocov
 ```
 
-- `--chr 1-22` restricts to the autosomes (sex is collinear with X-chromosome dosage and PLINK refuses to fit the model).
-- `--covar-variance-standardize` rescales every covariate to unit variance — needed because age (25--75), sex (1--2) and PCs ($\sim 10^{-2}$) live on very different scales.
-
-### Step 4. Top-10 SNPs in each model
+### Step 2. GWAS with covariates
 
 ```bash
-# In plink2 .glm.linear the P-value is column 15
+plink --bfile eur_qc \
+      --chr 1-22 \
+      --linear hide-covar \
+      --covar covariates_with_pcs.txt \
+      --covar-name age,sex,PC1-PC10 \
+      --out gwas_cov
+```
+
+### Step 3. Top-10 SNPs in each model
+
+```bash
+# In a plink 1.9 .assoc.linear the P-value is column 9
 echo "TOP 10 -- NO COVARIATES"
-( head -1 gwas_nocov.Ysim.glm.linear ; \
-  tail -n +2 gwas_nocov.Ysim.glm.linear | sort -g -k15,15 | head -10 ) | column -t
+( head -1 gwas_nocov.assoc.linear ; \
+  tail -n +2 gwas_nocov.assoc.linear | sort -g -k9,9 | head -10 ) | column -t
 
 echo "TOP 10 -- WITH COVARIATES"
-( head -1 gwas_cov.Ysim.glm.linear ; \
-  tail -n +2 gwas_cov.Ysim.glm.linear | sort -g -k15,15 | head -10 ) | column -t
+( head -1 gwas_cov.assoc.linear ; \
+  tail -n +2 gwas_cov.assoc.linear | sort -g -k9,9 | head -10 ) | column -t
 ```
 
-### Step 5. Manhattan plot
+### Step 4. Manhattan plot
 
 ```r
 library(qqman)
 
-g <- read.table("gwas_cov.Ysim.glm.linear",
-                header = TRUE, comment.char = "",
-                check.names = FALSE)
-# Rename PLINK2 columns to the friendly names qqman expects
-names(g)[names(g) == "#CHROM"] <- "CHR"
-names(g)[names(g) == "POS"]    <- "BP"
-names(g)[names(g) == "ID"]     <- "SNP"
-
+g <- read.table("gwas_cov.assoc.linear", header = TRUE)
 g <- subset(g, !is.na(P))
 
 cat("SNPs tested:", nrow(g), "\n")
 cat("Genome-wide significant (p<5e-8):", sum(g$P < 5e-8), "\n")
+cat("Suggestive (p<1e-5):", sum(g$P < 1e-5), "\n")
 
 png("fig_manhattan.png", width = 1400, height = 600, res = 130)
 manhattan(g, chr = "CHR", bp = "BP", snp = "SNP", p = "P",
           col = c("#1F3A5F", "#2A9D8F"),
           suggestiveline = -log10(1e-5),
           genomewideline = -log10(5e-8),
-          main = "GWAS Manhattan -- Ysim (with covariates)")
+          main = "GWAS Manhattan -- height (with covariates)")
 dev.off()
 ```
 
@@ -275,44 +252,41 @@ Rscript "$PRSICE_R" \
     --prsice "$PRSICE_BIN" \
     --base Height_GWAS_sumstats.txt \
     --target eur_qc \
-    --pheno pheno_sim.txt \
-    --pheno-col Ysim \
     --binary-target F \
     --cov covariates_with_pcs.txt \
     --cov-col age,sex,PC1-PC10 \
     --clump-kb 250 --clump-r2 0.1 \
     --bar-levels 0.005,0.05,0.5,1 \
     --fastscore \
-    --out prsice_sim
+    --out prsice_height
 ```
 
-PRSice writes three files:
+PRSice picks up the phenotype from `eur_qc.fam` automatically. It writes:
 
-- `prsice_sim.summary` — winning p-threshold and R² across thresholds
-- `prsice_sim.best` — per-individual PGS at the best threshold
-- `prsice_sim.prsice` — R² at every tested threshold
+- `prsice_height.summary` — winning p-threshold and R² across thresholds
+- `prsice_height.best` — per-individual PGS at the best threshold
+- `prsice_height.prsice` — R² at every tested threshold
 
-Post-process in R to compute the **incremental R²** of the PGS over a covariates-only model:
+Incremental R² of the PGS over a covariates-only model:
 
 ```r
-prs <- read.table("prsice_sim.best",           header = TRUE)  # FID IID In_Regression PRS
-phe <- read.table("pheno_sim.txt",             header = TRUE)  # FID IID Ysim
-cov <- read.table("covariates_with_pcs.txt",   header = TRUE)  # FID IID age sex PC1..PC10
+prs <- read.table("prsice_height.best",         header = TRUE)  # FID IID In_Regression PRS
+cov <- read.table("covariates_with_pcs.txt",    header = TRUE)
+fam <- read.table("eur_qc.fam", header = FALSE,
+                  col.names = c("FID","IID","PAT","MAT","SEX","height"))
 
-d <- Reduce(function(a, b) merge(a, b, by = c("FID", "IID")),
-            list(prs, phe, cov))
-d$PRS_z <- as.numeric(scale(d$PRS))               # standardise to mean 0, SD 1
+d <- Reduce(function(a, b) merge(a, b, by = c("FID","IID")),
+            list(prs, cov, fam[, c("FID","IID","height")]))
+d$PRS_z <- as.numeric(scale(d$PRS))
 
-m0 <- lm(Ysim ~ age + sex + PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
+m0 <- lm(height ~ age + sex + PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
          data = d)
-m1 <- lm(Ysim ~ PRS_z + age + sex + PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
+m1 <- lm(height ~ PRS_z + age + sex + PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
          data = d)
 inc_r2 <- summary(m1)$r.squared - summary(m0)$r.squared
 
-cat(sprintf("Incremental R^2 of PGS-height on Ysim = %.4f\n", inc_r2))
+cat(sprintf("Incremental R^2 of PGS-height on height = %.4f\n", inc_r2))
 ```
-
-> **Honest interpretation.** Because `Ysim` is simulated independently of the genome, expect a *small* incremental R². The PGS for height is used here to show you the full pipeline, **not** to predict the trait accurately.
 
 ---
 
@@ -325,8 +299,8 @@ $$Y_i = \beta_0 + \beta_1\,\mathrm{PGS}_i + \beta_2\,\mathrm{Gender}_i + \beta_3
 **Always standardise the PGS** before interacting it with another variable, otherwise the interaction coefficient is not interpretable.
 
 ```r
-fit <- lm(Ysim ~ PRS_z * factor(sex) + age +
-                 PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
+fit <- lm(height ~ PRS_z * factor(sex) + age +
+                   PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10,
           data = d)
 summary(fit)
 # Report beta_3, its SE and p-value: the term `PRS_z:factor(sex)2`.
@@ -334,7 +308,7 @@ summary(fit)
 
 ### Interaction plot
 
-Predicted Y vs PGS by gender, holding age at the sample mean and PCs at 0:
+Predicted height vs PGS by gender, holding age at the sample mean and PCs at 0:
 
 ```r
 grid <- expand.grid(
@@ -356,10 +330,10 @@ p_gxe <- ggplot(grid, aes(PRS_z, fit, colour = sex_label, fill = sex_label)) +
   geom_line(linewidth = 1) +
   scale_colour_manual(values = c("Male" = "#1F3A5F", "Female" = "#C0392B")) +
   scale_fill_manual  (values = c("Male" = "#1F3A5F", "Female" = "#C0392B")) +
-  labs(x = "PGS (standardised)", y = "Predicted Ysim",
+  labs(x = "PGS (standardised)", y = "Predicted height (cm)",
        colour = NULL, fill = NULL,
-       title = "G x E: PGS x gender on Ysim",
-       subtitle = "Predicted Ysim at mean age, PCs set to 0") +
+       title = "G x E: PGS x gender on height",
+       subtitle = "Predicted height at mean age, PCs set to 0") +
   theme_minimal(base_size = 11)
 
 ggsave("fig_gxe.png", p_gxe, width = 6.5, height = 4.5, dpi = 150)
