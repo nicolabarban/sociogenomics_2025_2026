@@ -107,7 +107,7 @@ Apply the canonical filters on **the EUR subset only**:
 | Individual call rate > 95% | `--mind 0.05` | Drop badly-genotyped individuals |
 | SNP call rate > 95% | `--geno 0.05` | Drop badly-genotyped SNPs |
 | HWE p > 10⁻⁵ | `--hwe 1e-5` | Drop SNPs with implausible allele frequencies (genotyping errors) |
-| Relatedness ϕ̂ < 0.1 | `--rel-cutoff 0.1` | Drop one of each related pair (independence assumption) |
+| Relatedness (KING ϕ̂ < 0.0884, ~3rd-degree) | `--king-cutoff 0.0884` | Drop one of each related pair (independence assumption) |
 
 ```bash
 plink2 --bfile hapmap3 \
@@ -116,7 +116,7 @@ plink2 --bfile hapmap3 \
        --mind 0.05 \
        --geno 0.05 \
        --hwe 1e-5 \
-       --rel-cutoff 0.1 \
+       --king-cutoff 0.0884 \
        --make-bed --out eur_qc
 
 wc -l eur_qc.{bim,fam}
@@ -124,35 +124,58 @@ wc -l eur_qc.{bim,fam}
 
 > **Common mistake:** running QC on the full multi-ancestry cohort and *then* subsetting to EUR. The HWE filter is the giveaway: mixed-ancestry samples look out-of-equilibrium even when each ancestry is fine. Always **first ancestry, then QC**.
 
+### PCA on the QC'd EUR subset (for GWAS covariates)
+
+The PCs we computed in Part A separate the *super-populations*. As covariates inside a single ancestry they are nearly collinear (and PLINK will refuse to run). Compute a fresh PCA on `eur_qc` and use **those** PCs in the GWAS:
+
+```bash
+plink2 --bfile eur_qc \
+       --indep-pairwise 200 50 0.2 \
+       --out eur_prune
+
+plink2 --bfile eur_qc \
+       --extract eur_prune.prune.in \
+       --pca 10 \
+       --out eur_pca
+```
+
 ---
 
-## Simulate a phenotype
+## Simulate covariates and a phenotype
 
-Before running the GWAS, we need a phenotype. For this tutorial we **simulate a random continuous trait** $Y_{sim}$ for every individual in the QC'd subset.
+`hapmap3` ships only with sex (column 5 of the `.fam`). We **synthesise age** and
+build a fake covariate file, then simulate a continuous trait $Y_{sim}$.
 
 ```r
-library(dplyr)
-
 fam <- read.table("eur_qc.fam", header = FALSE,
                   col.names = c("FID", "IID", "PAT", "MAT", "SEX", "PHENO"))
-cov <- read.table("covariates.txt", header = TRUE)
 
-# Merge to bring age and sex alongside FID/IID
-fam <- merge(fam[, c("FID", "IID")], cov, by = c("FID", "IID"))
+# Keep only individuals with a valid sex (1 = male, 2 = female)
+fam <- subset(fam, SEX %in% c(1, 2))
+fam$sex <- fam$SEX
+
+# Synthesise an age (uniform 25-75)
+set.seed(2026)
+fam$age <- runif(nrow(fam), 25, 75)
+
+# Save the covariate file
+write.table(fam[, c("FID", "IID", "age", "sex")],
+            "covariates.txt",
+            sep = "\t", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
 
 # Simulate Y_sim = 0.30 * age + 0.50 * sex + Gaussian noise
-set.seed(2026)
 fam$Ysim <- 0.30 * fam$age + 0.50 * fam$sex + rnorm(nrow(fam), mean = 0, sd = 5)
 
-# Save in PLINK format
-write.table(fam[, c("FID", "IID", "Ysim")], "pheno_sim.txt",
+write.table(fam[, c("FID", "IID", "Ysim")],
+            "pheno_sim.txt",
             sep = "\t", quote = FALSE,
             row.names = FALSE, col.names = TRUE)
 
 summary(fam$Ysim)
 ```
 
-`pheno_sim.txt` now contains `FID  IID  Ysim` for every QC'd individual. We use it for the rest of the pipeline.
+`covariates.txt` and `pheno_sim.txt` now have one row per QC'd individual and are used for the rest of the pipeline.
 
 ---
 
@@ -162,47 +185,55 @@ summary(fam$Ysim)
 
 ```bash
 plink2 --bfile eur_qc \
+       --chr 1-22 \
        --pheno pheno_sim.txt --pheno-name Ysim \
-       --glm \
+       --glm allow-no-covars \
        --out gwas_nocov
 ```
 
-### Step 2. Merge PCs into the covariate file
+### Step 2. Merge within-EUR PCs into the covariate file (in R)
 
-```bash
-# Pair eigenvec rows with covariates by IID
-awk 'NR==FNR{a[$2]=$0; next} $2 in a{print $0,a[$2]}' \
-    work_pca.eigenvec covariates.txt > _cov_with_pcs.txt
+```r
+cov <- read.table("covariates.txt", header = TRUE)
+ev  <- read.table("eur_pca.eigenvec",
+                  header = FALSE,
+                  col.names = c("FID", "IID", paste0("PC", 1:10)))
 
-{
-  echo -e "FID\tIID\tage\tsex\tPC1\tPC2\tPC3\tPC4\tPC5\tPC6\tPC7\tPC8\tPC9\tPC10"
-  awk '{print $1,$2,$3,$4,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16}' OFS='\t' \
-      _cov_with_pcs.txt
-} > covariates_with_pcs.txt
-rm _cov_with_pcs.txt
+cov_pc <- merge(cov, ev[, c("IID", paste0("PC", 1:10))], by = "IID")
+
+write.table(cov_pc[, c("FID","IID","age","sex", paste0("PC", 1:10))],
+            "covariates_with_pcs.txt",
+            sep = "\t", quote = FALSE,
+            row.names = FALSE, col.names = TRUE)
 ```
 
 ### Step 3. GWAS with covariates
 
 ```bash
 plink2 --bfile eur_qc \
+       --chr 1-22 \
        --pheno pheno_sim.txt --pheno-name Ysim \
        --covar covariates_with_pcs.txt \
        --covar-name age,sex,PC1-PC10 \
+       --covar-variance-standardize \
        --glm hide-covar \
        --out gwas_cov
 ```
 
+- `--chr 1-22` restricts to the autosomes (sex is collinear with X-chromosome dosage and PLINK refuses to fit the model).
+- `--covar-variance-standardize` rescales every covariate to unit variance — needed because age (25--75), sex (1--2) and PCs ($\sim 10^{-2}$) live on very different scales.
+
 ### Step 4. Top-10 SNPs in each model
 
 ```bash
+# In plink2 .glm.linear the P-value is column 15
 echo "TOP 10 -- NO COVARIATES"
 ( head -1 gwas_nocov.Ysim.glm.linear ; \
-  tail -n +2 gwas_nocov.Ysim.glm.linear | sort -gk12 | head -10 ) | column -t
+  tail -n +2 gwas_nocov.Ysim.glm.linear | sort -g -k15,15 | head -10 ) | column -t
 
 echo "TOP 10 -- WITH COVARIATES"
 ( head -1 gwas_cov.Ysim.glm.linear ; \
-  tail -n +2 gwas_cov.Ysim.glm.linear | sort -gk12 | head -10 ) | column -t
+  tail -n +2 gwas_cov.Ysim.glm.linear | sort -g -k15,15 | head -10 ) | column -t
 ```
 
 ### Step 5. Manhattan plot
