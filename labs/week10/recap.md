@@ -225,10 +225,6 @@ library(qqman)
 g <- read.table("gwas_cov.assoc.linear", header = TRUE)
 g <- subset(g, !is.na(P))
 
-cat("SNPs tested:", nrow(g), "\n")
-cat("Genome-wide significant (p<5e-8):", sum(g$P < 5e-8), "\n")
-cat("Suggestive (p<1e-5):", sum(g$P < 1e-5), "\n")
-
 png("fig_manhattan.png", width = 1400, height = 600, res = 130)
 manhattan(g, chr = "CHR", bp = "BP", snp = "SNP", p = "P",
           col = c("#1F3A5F", "#2A9D8F"),
