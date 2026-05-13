@@ -10,6 +10,8 @@ We use:
 - `height_cm.phen` — the simulated height phenotype (FID IID HEIGHT, no header),
 - `1kg_samples.txt` — 1000G super-population labels.
 
+> **Download the data**: [Dropbox folder](https://www.dropbox.com/scl/fo/jmnsl08mzzvkd0ya5g2qf/AGcEWxAUYQvhNYTdJs9zFQc?rlkey=vave7ui487um82kxgbikmfg2x&dl=0). Unzip into your working directory.
+
 ## Part A — Ancestry and population structure (Lab 4)
 
 ### Step 1. LD-prune SNPs (for a clean PCA)
